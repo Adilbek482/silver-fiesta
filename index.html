@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сверка — контроль закрытия периода</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#F3F5F2; --surface:#FFFFFF; --surface-2:#ECF1EE; --ink:#15201C; --muted:#4B5752; --line:#D7DED9;
+  --nav:#0F2A24; --nav-ink:#E6EFEB; --nav-muted:#9DB8AE; --nav-hover:#173A32; --nav-active:#E6EFEB; --nav-active-ink:#0F2A24;
+  --accent:#0F5C4D; --accent-ink:#FFFFFF; --accent-soft:#DCEDE6;
+  --crit:#A3261A; --crit-soft:#FBE5E2; --warn:#8A4B00; --warn-soft:#FCEED6; --info:#1F4FA0; --info-soft:#E1E9F8;
+  --ok:#0E6B47; --ok-soft:#DCF1E6; --none:#8C9893; --focus:#1F6FEB; --backdrop:rgba(10,20,17,.45);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0E1513; --surface:#16201D; --surface-2:#1D2A26; --ink:#E4ECE8; --muted:#A7B6B0; --line:#2C3C37;
+    --nav:#0A1B17; --nav-ink:#DCE8E3; --nav-muted:#8EA79E; --nav-hover:#14302A; --nav-active:#DCE8E3; --nav-active-ink:#0A1B17;
+    --accent:#5CC2A6; --accent-ink:#04231C; --accent-soft:#163A31;
+    --crit:#FF9E91; --crit-soft:#3A1B17; --warn:#F2B866; --warn-soft:#352713; --info:#9DBBF2; --info-soft:#18253B;
+    --ok:#7AD3A6; --ok-soft:#14302A; --none:#6F7D78; --focus:#7FB0FF; --backdrop:rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0E1513; --surface:#16201D; --surface-2:#1D2A26; --ink:#E4ECE8; --muted:#A7B6B0; --line:#2C3C37;
+  --nav:#0A1B17; --nav-ink:#DCE8E3; --nav-muted:#8EA79E; --nav-hover:#14302A; --nav-active:#DCE8E3; --nav-active-ink:#0A1B17;
+  --accent:#5CC2A6; --accent-ink:#04231C; --accent-soft:#163A31;
+  --crit:#FF9E91; --crit-soft:#3A1B17; --warn:#F2B866; --warn-soft:#352713; --info:#9DBBF2; --info-soft:#18253B;
+  --ok:#7AD3A6; --ok-soft:#14302A; --none:#6F7D78; --focus:#7FB0FF; --backdrop:rgba(0,0,0,.6);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans","Segoe UI","Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+h1,h2,h3{margin:0;line-height:1.25}
+
+.shell{display:flex;min-height:100vh}
+.side-wrap{width:264px;flex:none;background:var(--nav);color:var(--nav-ink)}
+.side{position:sticky;top:env(safe-area-inset-top,0px);max-height:calc(100vh - env(safe-area-inset-top,0px));overflow:auto;padding:22px 14px 28px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px}
+.brand-mark{width:36px;height:36px;border-radius:9px;background:#3FB68B;color:#0F2A24;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex:none}
+.brand-name{font-weight:700;font-size:18px}
+.brand-sub{font-size:12px;color:var(--nav-muted)}
+.menu-btn{display:none;margin-left:auto;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #2E4C44;background:transparent;color:var(--nav-ink);font-weight:600;cursor:pointer}
+.nav-groups{display:flex;flex-direction:column;gap:16px}
+.nav-group-title{font-size:12px;color:var(--nav-muted);padding:0 10px 4px;font-weight:600}
+.nav-link{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 10px;border-radius:8px;color:var(--nav-ink);text-decoration:none;font-size:14.5px}
+.nav-link:hover{background:var(--nav-hover)}
+.nav-link[aria-current="page"]{background:var(--nav-active);color:var(--nav-active-ink);font-weight:600}
+.nav-link .code{font-size:12px;color:var(--nav-muted)}
+.nav-link[aria-current="page"] .code{color:#3D5C53}
+.nav-count{margin-left:auto;min-width:24px;padding:1px 7px;border-radius:999px;font-size:12px;font-weight:600;text-align:center;background:#2A4A42;color:#E6EFEB}
+.nav-count.has-crit{background:#C2412F;color:#FFFFFF}
+.side-foot{margin-top:auto;font-size:12.5px;color:var(--nav-muted);padding:10px;border:1px solid #2A463F;border-radius:10px;line-height:1.5}
+
+.main{flex:1;min-width:0;padding:28px 36px 72px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.crumbs{font-size:13.5px;color:var(--muted)}
+.page-head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.page-head h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
+.lead{color:var(--muted);max-width:72ch;margin:6px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;align-items:start}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:6px}
+.kpi-label{font-size:13.5px;color:var(--muted)}
+.kpi-value{font-size:30px;font-weight:600;letter-spacing:-.01em}
+.kpi-sub{font-size:13px;color:var(--muted)}
+.kpi-sub.crit{color:var(--crit);font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel h2{font-size:17px;font-weight:600}
+.panel-sub{font-size:13.5px;color:var(--muted);margin-top:-8px}
+.note{font-size:13.5px;color:var(--muted);line-height:1.55}
+.note strong{color:var(--ink)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-quiet{border-color:transparent;background:transparent;color:var(--accent);padding:0 8px}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.chip{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13.5px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.field{display:flex;flex-direction:column;gap:5px;font-size:13.5px;color:var(--muted);min-width:0}
+.field input,.field select{min-height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14.5px;width:100%}
+.inline-input{min-height:34px;width:84px;padding:0 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);text-align:right}
+
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-crit{background:var(--crit-soft);color:var(--crit)}
+.b-warn{background:var(--warn-soft);color:var(--warn)}
+.b-info{background:var(--info-soft);color:var(--info)}
+.b-ok{background:var(--ok-soft);color:var(--ok)}
+.b-none{background:var(--surface-2);color:var(--muted)}
+.t-crit{color:var(--crit)} .t-warn{color:var(--warn)} .t-ok{color:var(--ok)} .t-muted{color:var(--muted)}
+
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12.5px;font-weight:600;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right;white-space:nowrap}
+.tbl tfoot td{font-weight:600;background:var(--surface-2)}
+.tbl tr.hl td{background:var(--accent-soft)}
+.tbl tr.flag td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+.tbl tr.flag-crit td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
+
+.strikes{display:flex;flex-direction:column;gap:8px}
+.strike{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 14px;align-items:center;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;cursor:pointer;color:var(--ink)}
+.strike:hover{border-color:var(--accent)}
+.strike-title{font-weight:600;font-size:14.5px}
+.strike-meta{font-size:13px;color:var(--muted)}
+.strike-amt{text-align:right;white-space:nowrap;font-weight:600}
+.strike-status{font-size:12px;color:var(--muted);text-align:right}
+.strike.closed{opacity:.62}
+.empty{padding:22px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);text-align:center;background:var(--surface)}
+
+.close-bar{display:flex;gap:4px;height:44px}
+.close-seg{flex:1;border-radius:6px;min-width:10px;border:0;padding:0;cursor:pointer}
+.seg-done{background:var(--ok)} .seg-open{background:var(--crit)} .seg-warn{background:#D08A24} .seg-manual{background:var(--line)} .seg-nodata{background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,transparent 4px,transparent 8px)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+.module-table td a{font-weight:600;text-decoration:none}
+.module-table td a:hover{text-decoration:underline}
+
+.ds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.ds{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.ds h3{font-size:15.5px}
+.ds details{font-size:13px;color:var(--muted)}
+.ds summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.ds code{font-family:inherit;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+.msg{font-size:13px;padding:8px 10px;border-radius:8px}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.msg.err{background:var(--crit-soft);color:var(--crit)}
+.file-label{position:relative;overflow:hidden}
+.file-label input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+.drawer-back{position:fixed;inset:0;background:var(--backdrop);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(580px,100%);background:var(--surface);z-index:41;overflow:auto;padding:calc(22px + env(safe-area-inset-top,0px)) 24px calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px;box-shadow:-12px 0 40px rgba(0,0,0,.18)}
+.drawer h2{font-size:22px;line-height:1.3}
+.d-sec{display:flex;flex-direction:column;gap:4px}
+.d-sec .lbl{font-size:12.5px;font-weight:600;color:var(--muted)}
+.d-entry{background:var(--surface-2);border-radius:10px;padding:12px 14px}
+.d-amt{font-size:24px;font-weight:600}
+.ai-out{white-space:pre-wrap;background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:14.5px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:60}
+
+@media (max-width: 900px){
+  .shell{flex-direction:column}
+  .side-wrap{width:100%}
+  .side{position:static;max-height:none;padding:12px 14px}
+  .menu-btn{display:inline-flex;align-items:center}
+  .nav-groups,.side-foot{display:none}
+  .side.open .nav-groups{display:flex}
+  .main{padding:20px 16px 56px}
+  .page-head h1{font-size:23px}
+}
+@media (prefers-reduced-motion: no-preference){
+  .drawer{animation:slide .18s ease-out}
+  @keyframes slide{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+
+/* ---------- formatting ---------- */
+const NF0 = new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0});
+const NF1 = new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1});
+const NF2 = new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2});
+const money = n => NF0.format(Math.round(n||0)) + ' ₸';
+const moneyM = n => Math.abs(n) >= 1e6 ? NF1.format(n/1e6) + ' млн ₸' : money(n);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const D = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m ? new Date(Date.UTC(+m[1], +m[2]-1, +m[3])) : null; };
+const fd = s => { const d = D(s); return d ? String(d.getUTCDate()).padStart(2,'0') + '.' + String(d.getUTCMonth()+1).padStart(2,'0') + '.' + d.getUTCFullYear() : '—'; };
+const mi = d => d.getUTCFullYear()*12 + d.getUTCMonth();
+const sum = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);
+const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c); };
+
+/* ---------- schemas ---------- */
+const SCHEMAS = {
+  entries: { title:'Проводки', desc:'Журнал проводок из 1С за период и 3 предыдущих месяца.', cols:[
+    ['date','Дата','d'],['doc','Документ','s'],['debit','Дт','s'],['credit','Кт','s'],['amount','Сумма','n'],['counterparty','Контрагент','s'],['description','Содержание','s'],['hasDoc','Первичка есть','b']]},
+  esf: { title:'ЭСФ', desc:'Реестр входящих и исходящих ЭСФ из ИС ЭСФ с отметкой, отражён ли документ в учёте.', cols:[
+    ['number','Номер ЭСФ','s'],['date','Дата','d'],['direction','Направление','s'],['counterparty','Контрагент','s'],['bin','БИН','s'],['net','Сумма без НДС','n'],['vat','НДС','n'],['rate','Ставка НДС, %','n'],['status','Статус ЭСФ','s'],['inBooks','Отражён в учёте','b'],['bookVat','НДС в учёте','n']]},
+  counterparties: { title:'Контрагенты', desc:'Справочник контрагентов: статус по КГД, договор, сальдо по учёту и по акту сверки.', cols:[
+    ['name','Контрагент','s'],['bin','БИН','s'],['kgd','Статус КГД','s'],['contractEnd','Договор действует до','d'],['bookBalance','Сальдо в учёте','n'],['actBalance','Сальдо по акту сверки','n'],['lastMovement','Последнее движение','d']]},
+  payroll: { title:'Сотрудники', desc:'Начисления за месяц, применённый вычет и удержанный ИПН.', cols:[
+    ['name','Сотрудник','s'],['salary','Начислено за месяц','n'],['deductionMRP','Вычет, МРП','n'],['ipn','ИПН удержан','n']]},
+  deductions: { title:'Расходы к вычету по КПН', desc:'Расходы с категорией и отметкой, отнесены ли они на вычет.', cols:[
+    ['expense','Расход','s'],['amount','Сумма','n'],['category','Категория','s'],['deducted','Отнесён на вычет','b']]},
+  leases: { title:'Договоры аренды', desc:'Условия договоров аренды для расчёта по МСФО 16.', cols:[
+    ['counterparty','Арендодатель','s'],['object','Объект','s'],['start','Начало аренды','d'],['term','Срок, мес.','n'],['payment','Платёж в месяц','n'],['rate','Ставка дисконтирования, % годовых','n'],['recognized','Признана по МСФО 16','b'],['bookLiability','Обязательство в учёте','n']]},
+  receivables: { title:'Дебиторская задолженность', desc:'Долги покупателей с днями просрочки и начисленным резервом.', cols:[
+    ['counterparty','Покупатель','s'],['amount','Сумма долга','n'],['days','Дней просрочки','n'],['reserve','Резерв в учёте','n']]},
+  loans: { title:'Займы', desc:'Выданные и полученные займы со ставкой по договору и рыночной ставкой.', cols:[
+    ['counterparty','Контрагент','s'],['type','Тип','s'],['principal','Сумма','n'],['rate','Ставка по договору, %','n'],['market','Рыночная ставка, %','n'],['term','Срок, мес.','n'],['discounted','Дисконтирован','b']]},
+  revenue: { title:'Выручка', desc:'Документы реализации с датой передачи контроля и условиями ретро-бонусов.', cols:[
+    ['doc','Документ','s'],['counterparty','Покупатель','s'],['recognized','Дата признания выручки','d'],['transfer','Дата передачи контроля','d'],['amount','Сумма','n'],['bonusPct','Ретро-бонус, %','n'],['bonusAccrued','Бонус начислен','n']]},
+  fx: { title:'Валютные статьи', desc:'Остатки в иностранной валюте на конец периода.', cols:[
+    ['item','Статья','s'],['type','Тип','s'],['currency','Валюта','s'],['amountFC','Сумма в валюте','n'],['rateBooked','Курс в учёте','n'],['revalAmount','Переоценка в учёте','n']]},
+  inventory: { title:'Запасы', desc:'Остатки запасов с себестоимостью и чистой ценой продажи.', cols:[
+    ['item','Номенклатура','s'],['qty','Количество','n'],['cost','Себестоимость за ед.','n'],['nrv','Чистая цена продажи за ед.','n'],['lastMovement','Последнее движение','d'],['writedown','Списание в учёте','n']]},
+  assets: { title:'Основные средства', desc:'Карточки основных средств и незавершённого строительства.', cols:[
+    ['name','Объект','s'],['status','Статус','s'],['date','Дата ввода или начала','d'],['cost','Первоначальная стоимость','n'],['life','Срок службы, мес.','n'],['accum','Накопленная амортизация','n']]},
+  provisions: { title:'Резервы и оценочные обязательства', desc:'Оценка резервов против сумм в учёте.', cols:[
+    ['type','Резерв','s'],['required','Оценка','n'],['booked','В учёте','n'],['term','Срок исполнения, мес.','n'],['discounted','Дисконтирован','b']]},
+  temp: { title:'Временные разницы', desc:'Балансовая стоимость и налоговая база статей для расчёта отложенного налога.', cols:[
+    ['item','Статья','s'],['side','Раздел баланса','s'],['carrying','Балансовая стоимость','n'],['taxBase','Налоговая база','n']]}
+};
+const DS_ORDER = Object.keys(SCHEMAS);
+
+/* ---------- demo data ---------- */
+const E = (date, doc, debit, credit, amount, counterparty, description, hasDoc) => ({date, doc, debit, credit, amount, counterparty, description, hasDoc});
+function demoEntries(){
+  const out = [];
+  ['2026-06','2026-07','2026-08'].forEach((m, i) => {
+    out.push(E(m+'-04','АВР-'+(410+i),'7210','3310',2000000,'ТОО «Сапа Девелопмент»','Аренда офиса',true));
+    out.push(E(m+'-25','АВР-'+(520+i),'7210','3310',180000,'ТОО «Линк Телеком»','Услуги связи',true));
+    out.push(E(m+'-24','СФ-'+(630+i),'7210','3310',640000,'ТОО «Энерго Сбыт»','Коммунальные услуги',true));
+  });
+  out.push(
+    E('2026-09-04','АВР-413','7210','3310',2000000,'ТОО «Сапа Девелопмент»','Аренда офиса',true),
+    E('2026-09-25','СФ-633','7210','3310',640000,'ТОО «Энерго Сбыт»','Коммунальные услуги',true),
+    E('2026-09-08','НК-2201','1310','3310',3450000,'ТОО «Гамма Строй»','Строительные материалы',true),
+    E('2026-09-15','НК-2219','1310','3310',1500000,'ТОО «Гамма Строй»','Строительные материалы',false),
+    E('2026-09-22','НК-2240','1310','3310',650000,'ТОО «Гамма Строй»','Строительные материалы',false),
+    E('2026-09-22','НК-2241','1310','3310',800000,'ТОО «Гамма Строй»','Строительные материалы',true),
+    E('2026-09-03','АВР-7781','7110','3310',11500000,'ТОО «Бета Логистик»','Транспортные услуги',true),
+    E('2026-09-17','АВР-7790','7110','3310',220000,'ТОО «Бета Логистик»','Экспедирование',false),
+    E('2026-09-21','АВР-7795','7110','3310',180000,'ТОО «Бета Логистик»','Экспедирование',false),
+    E('2026-09-09','НК-118','1310','3310',150000,'ТОО «Нур Пласт»','Упаковка',false),
+    E('2026-09-16','НК-121','1310','3310',130000,'ТОО «Нур Пласт»','Упаковка',false),
+    E('2026-09-23','НК-125','1310','3310',120000,'ТОО «Нур Пласт»','Упаковка',false),
+    E('2026-09-02','НК-5510','1310','3310',3000000,'ТОО «Альфа Снаб»','Металлопрокат',true),
+    E('2026-09-09','НК-5528','1310','3310',2500000,'ТОО «Альфа Снаб»','Металлопрокат',true),
+    E('2026-09-10','ПП-1182','3310','1030',1250000,'ТОО «Альфа Снаб»','Оплата по счёту 7741',true),
+    E('2026-09-11','ПП-1182','3310','1030',1250000,'ТОО «Альфа Снаб»','Оплата по счёту 7741',true),
+    E('2026-09-14','РН-3301','1210','6010',3500000,'ТОО «Дельта Трейд»','Реализация товаров',true),
+    E('2026-09-16','РН-3318','1210','6010',3300000,'ТОО «Дельта Трейд»','Реализация товаров',true),
+    E('2026-09-18','РН-3342','1210','6010',3500000,'ТОО «Дельта Трейд»','Реализация товаров',true),
+    E('2026-09-27','Корр-55','7210','3350',5000000,'','Корректировка расходов (ручная)',true)
+  );
+  return out;
+}
+function demoData(){
+  return {
+    entries: demoEntries(),
+    esf: [
+      {number:'ESF-0903-88412',date:'2026-09-03',direction:'входящий',counterparty:'ТОО «Бета Логистик»',bin:'210140007730',net:11500000,vat:1840000,rate:16,status:'Отозван',inBooks:true,bookVat:1840000},
+      {number:'ESF-0908-10221',date:'2026-09-08',direction:'входящий',counterparty:'ТОО «Гамма Строй»',bin:'190340001094',net:3450000,vat:552000,rate:16,status:'Действительный',inBooks:true,bookVat:552000},
+      {number:'ESF-0922-10260',date:'2026-09-22',direction:'входящий',counterparty:'ТОО «Гамма Строй»',bin:'190340001094',net:800000,vat:128000,rate:16,status:'Действительный',inBooks:true,bookVat:128000},
+      {number:'ESF-0902-55101',date:'2026-09-02',direction:'входящий',counterparty:'ТОО «Альфа Снаб»',bin:'150640004821',net:3000000,vat:480000,rate:16,status:'Действительный',inBooks:true,bookVat:448000},
+      {number:'ESF-0909-55128',date:'2026-09-09',direction:'входящий',counterparty:'ТОО «Альфа Снаб»',bin:'150640004821',net:2500000,vat:400000,rate:16,status:'Действительный',inBooks:true,bookVat:400000},
+      {number:'ESF-0926-30017',date:'2026-09-26',direction:'входящий',counterparty:'ТОО «Нур Пласт»',bin:'200240009917',net:2000000,vat:320000,rate:16,status:'Действительный',inBooks:false,bookVat:0},
+      {number:'ESF-0914-77301',date:'2026-09-14',direction:'исходящий',counterparty:'ТОО «Дельта Трейд»',bin:'170840003307',net:3500000,vat:420000,rate:12,status:'Действительный',inBooks:true,bookVat:420000},
+      {number:'ESF-0916-77318',date:'2026-09-16',direction:'исходящий',counterparty:'ТОО «Дельта Трейд»',bin:'170840003307',net:3300000,vat:396000,rate:12,status:'Действительный',inBooks:true,bookVat:396000},
+      {number:'ESF-0918-77342',date:'2026-09-18',direction:'исходящий',counterparty:'ТОО «Дельта Трейд»',bin:'170840003307',net:3500000,vat:420000,rate:12,status:'Действительный',inBooks:true,bookVat:420000},
+      {number:'ESF-0904-41300',date:'2026-09-04',direction:'входящий',counterparty:'ТОО «Сапа Девелопмент»',bin:'180540002210',net:2000000,vat:320000,rate:16,status:'Действительный',inBooks:true,bookVat:320000}
+    ],
+    counterparties: [
+      {name:'ТОО «Альфа Снаб»',bin:'150640004821',kgd:'Действующий',contractEnd:'2027-12-31',bookBalance:3210000,actBalance:3750000,lastMovement:'2026-09-11'},
+      {name:'ТОО «Бета Логистик»',bin:'210140007730',kgd:'Действующий',contractEnd:'2026-06-30',bookBalance:4100000,actBalance:4100000,lastMovement:'2026-09-21'},
+      {name:'ТОО «Гамма Строй»',bin:'190340001094',kgd:'Бездействующий',contractEnd:'2026-12-31',bookBalance:2600000,actBalance:null,lastMovement:'2026-09-22'},
+      {name:'ИП Касымов А.',bin:'850512305512',kgd:'Действующий',contractEnd:'2026-12-31',bookBalance:0,actBalance:0,lastMovement:'2026-08-14'},
+      {name:'ТОО «Дельта Трейд»',bin:'170840003307',kgd:'Действующий',contractEnd:'2027-03-31',bookBalance:10300000,actBalance:10300000,lastMovement:'2026-09-18'},
+      {name:'ТОО «Омега Сервис»',bin:'120940006618',kgd:'Действующий',contractEnd:'2023-12-31',bookBalance:310000,actBalance:null,lastMovement:'2023-05-14'},
+      {name:'ТОО «Нур Пласт»',bin:'200240009917',kgd:'Действующий',contractEnd:'',bookBalance:400000,actBalance:null,lastMovement:'2026-09-23'},
+      {name:'ТОО «Сапа Девелопмент»',bin:'180540002210',kgd:'Действующий',contractEnd:'2030-09-30',bookBalance:0,actBalance:0,lastMovement:'2026-09-04'},
+      {name:'ТОО «Линк Телеком»',bin:'160140008812',kgd:'Действующий',contractEnd:'2027-01-31',bookBalance:0,actBalance:null,lastMovement:'2026-08-25'},
+      {name:'ТОО «Энерго Сбыт»',bin:'110240005531',kgd:'Действующий',contractEnd:'2027-12-31',bookBalance:640000,actBalance:640000,lastMovement:'2026-09-25'}
+    ],
+    payroll: [
+      {name:'Ахметов Б.',salary:450000,deductionMRP:30,ipn:26625},
+      {name:'Сейтказиева А.',salary:520000,deductionMRP:30,ipn:32785},
+      {name:'Ким Е.',salary:380000,deductionMRP:14,ipn:27385},
+      {name:'Жумабаев Н.',salary:900000,deductionMRP:30,ipn:66225},
+      {name:'Петрова О.',salary:650000,deductionMRP:14,ipn:51145},
+      {name:'Нурланов Д. (директор)',salary:3800000,deductionMRP:30,ipn:321425},
+      {name:'Оспанова Г.',salary:310000,deductionMRP:30,ipn:14305},
+      {name:'Сулейменов Т.',salary:600000,deductionMRP:30,ipn:39825}
+    ],
+    deductions: [
+      {expense:'Штраф за несвоевременную сдачу отчётности',amount:450000,category:'Штрафы и пени в бюджет',deducted:true},
+      {expense:'Пени по НДС',amount:85000,category:'Штрафы и пени в бюджет',deducted:true},
+      {expense:'Ремонт квартиры учредителя',amount:1200000,category:'Не связаны с доходом',deducted:true},
+      {expense:'Аренда офиса',amount:2000000,category:'Обычные',deducted:true},
+      {expense:'Коммунальные услуги',amount:640000,category:'Обычные',deducted:true},
+      {expense:'Благотворительная помощь',amount:300000,category:'Не связаны с доходом',deducted:false}
+    ],
+    leases: [
+      {counterparty:'ТОО «Сапа Девелопмент»',object:'Офис, 420 м²',start:'2025-10-01',term:60,payment:2000000,rate:15,recognized:false,bookLiability:0},
+      {counterparty:'ТОО «Логистик Парк»',object:'Склад',start:'2025-01-01',term:36,payment:1200000,rate:14,recognized:true,bookLiability:22000000},
+      {counterparty:'ТОО «Авто Лизинг»',object:'Легковой автомобиль',start:'2026-07-01',term:6,payment:450000,rate:15,recognized:false,bookLiability:0}
+    ],
+    receivables: [
+      {counterparty:'ТОО «Дельта Трейд»',amount:10300000,days:0,reserve:0},
+      {counterparty:'ТОО «Сары-Арка Ритейл»',amount:4200000,days:25,reserve:0},
+      {counterparty:'ТОО «Береке Маркет»',amount:3100000,days:75,reserve:100000},
+      {counterparty:'ИП Ахметова Д.',amount:1800000,days:140,reserve:200000},
+      {counterparty:'ТОО «Шыгыс Агро»',amount:9300000,days:210,reserve:2200000}
+    ],
+    loans: [
+      {counterparty:'ТОО «Демо Холдинг»',type:'выдан',principal:20000000,rate:0,market:16,term:24,discounted:false},
+      {counterparty:'Сотрудник Иванов И.',type:'выдан',principal:3000000,rate:0,market:16,term:12,discounted:false},
+      {counterparty:'АО «Банк Демо»',type:'получен',principal:150000000,rate:18,market:17,term:36,discounted:false}
+    ],
+    revenue: [
+      {doc:'РН-3301',counterparty:'ТОО «Дельта Трейд»',recognized:'2026-09-14',transfer:'2026-09-14',amount:3500000,bonusPct:0,bonusAccrued:0},
+      {doc:'РН-3318',counterparty:'ТОО «Дельта Трейд»',recognized:'2026-09-16',transfer:'2026-09-16',amount:3300000,bonusPct:0,bonusAccrued:0},
+      {doc:'РН-3342',counterparty:'ТОО «Дельта Трейд»',recognized:'2026-09-18',transfer:'2026-09-18',amount:3500000,bonusPct:0,bonusAccrued:0},
+      {doc:'РН-3390',counterparty:'ТОО «Шыгыс Агро»',recognized:'2026-09-30',transfer:'2026-10-04',amount:7800000,bonusPct:0,bonusAccrued:0},
+      {doc:'СФ-117 (предоплата)',counterparty:'ТОО «Береке Маркет»',recognized:'2026-09-21',transfer:'',amount:4500000,bonusPct:0,bonusAccrued:0},
+      {doc:'Договор 45/2026, продажи за 9 мес.',counterparty:'ТОО «Сары-Арка Ритейл»',recognized:'2026-09-30',transfer:'2026-09-30',amount:60000000,bonusPct:3,bonusAccrued:0}
+    ],
+    fx: [
+      {item:'Валютный счёт в банке',type:'денежная',currency:'USD',amountFC:50000,rateBooked:505,revalAmount:0},
+      {item:'Аванс выданный иностранному поставщику',type:'аванс',currency:'USD',amountFC:12000,rateBooked:539.67,revalAmount:236000},
+      {item:'Кредиторская задолженность поставщику',type:'денежная',currency:'EUR',amountFC:30000,rateBooked:600,revalAmount:0},
+      {item:'Займ от материнской компании',type:'денежная',currency:'RUB',amountFC:8000000,rateBooked:6.1,revalAmount:0}
+    ],
+    inventory: [
+      {item:'Цемент М400, т',qty:120,cost:38000,nrv:41000,lastMovement:'2026-09-20',writedown:0},
+      {item:'Плитка керамическая, м²',qty:2400,cost:4800,nrv:3900,lastMovement:'2026-03-11',writedown:0},
+      {item:'Профиль алюминиевый, шт',qty:-35,cost:2900,nrv:3500,lastMovement:'2026-09-24',writedown:0},
+      {item:'Краска фасадная, л',qty:860,cost:2100,nrv:2600,lastMovement:'2025-06-02',writedown:0},
+      {item:'Арматура А500, т',qty:40,cost:310000,nrv:295000,lastMovement:'2026-09-25',writedown:600000}
+    ],
+    assets: [
+      {name:'Станок ЧПУ',status:'в эксплуатации',date:'2026-05-12',cost:48000000,life:120,accum:0},
+      {name:'Здание склада',status:'в эксплуатации',date:'2019-03-01',cost:420000000,life:600,accum:63000000},
+      {name:'Грузовой автомобиль',status:'в эксплуатации',date:'2018-01-15',cost:24000000,life:60,accum:24000000},
+      {name:'Сервер',status:'в эксплуатации',date:'2025-02-01',cost:6000000,life:36,accum:1200000},
+      {name:'Склад №2',status:'незавершённое строительство',date:'2023-04-01',cost:35000000,life:0,accum:0}
+    ],
+    provisions: [
+      {type:'Резерв по неиспользованным отпускам',required:8400000,booked:5100000,term:12,discounted:false},
+      {type:'Годовые бонусы сотрудникам',required:12000000,booked:0,term:6,discounted:false},
+      {type:'Гарантийный ремонт',required:1500000,booked:1500000,term:18,discounted:false},
+      {type:'Обязательство по рекультивации',required:30000000,booked:30000000,term:120,discounted:false}
+    ],
+    temp: [
+      {item:'Основные средства',side:'актив',carrying:520000000,taxBase:480000000},
+      {item:'Резерв по отпускам',side:'обязательство',carrying:8400000,taxBase:0},
+      {item:'Дебиторская задолженность за вычетом резерва',side:'актив',carrying:26200000,taxBase:28700000}
+    ]
+  };
+}
+const DEFAULT_SETTINGS = {
+  company:'ТОО «Демо Компания»', period:'2026-09', mrp:4325, baseDeduction:30, vatRate:16, citRate:20,
+  threshold:10000, discountRate:14, deferredBooked:2000000,
+  rates:{USD:520, EUR:600, RUB:6.4, CNY:72},
+  ecl:[1,3,10,30,70],
+  nonDeductible:'Штрафы и пени в бюджет; Не связаны с доходом'
+};
+
+/* ---------- state ---------- */
+const STORE = 'sverka.v1';
+let S, UI = { open:null, sev:'all', mod:'all', status:'open', q:'', navOpen:false, msg:{}, ai:{}, aiBusy:{}, leaseSel:0, focusDrawer:false, toast:'' };
+function fresh(){
+  const demo = demoData(); const source = {};
+  DS_ORDER.forEach(k => source[k] = 'demo');
+  return { data: demo, source, settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), statuses:{}, rulesOff:{}, tasks:{} };
+}
+function load(){
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (raw) {
+      const p = JSON.parse(raw);
+      const f = fresh();
+      S = Object.assign(f, p);
+      S.settings = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), p.settings || {});
+      DS_ORDER.forEach(k => { if (!Array.isArray(S.data[k])) { S.data[k] = []; S.source[k] = 'empty'; } });
+      return;
+    }
+  } catch(e) {}
+  S = fresh();
+}
+function save(){
+  try { localStorage.setItem(STORE, JSON.stringify(S)); }
+  catch(e) { toast('Не удалось сохранить в браузере: данные слишком большие. Они останутся до перезагрузки страницы.'); }
+}
+
+/* ---------- period ---------- */
+function period(){
+  const m = /^(\d{4})-(\d{2})$/.exec(S.settings.period) || [0, 2026, 9];
+  const y = +m[1], mo = +m[2];
+  const start = new Date(Date.UTC(y, mo-1, 1)), end = new Date(Date.UTC(y, mo, 0));
+  return { y, m:mo, start, end, label: MONTHS[mo-1] + ' ' + y, iso: S.settings.period };
+}
+const inP = (s, P) => { const d = D(s); return !!d && d >= P.start && d <= P.end; };
+const isPay = e => /^10/.test(e.debit) || /^10/.test(e.credit);
+
+/* ---------- calculators ---------- */
+function leaseCalc(l, P){
+  const r = (l.rate || 0) / 100 / 12;
+  const pv = (n) => r === 0 ? l.payment * n : l.payment * (1 - Math.pow(1 + r, -n)) / r;
+  const st = D(l.start);
+  let elapsed = st ? (mi(P.end) - mi(st) + 1) : 0;
+  elapsed = Math.max(0, Math.min(l.term, elapsed));
+  const remaining = Math.max(0, l.term - elapsed);
+  const pv0 = pv(l.term);
+  const liability = pv(remaining);
+  const depMonthly = l.term ? pv0 / l.term : 0;
+  const rou = Math.max(0, pv0 - depMonthly * elapsed);
+  const shortTerm = l.term <= 12;
+  return { r, pv0, elapsed, remaining, liability, depMonthly, rou, shortTerm,
+    schedule(){
+      const rows = []; let open = pv0;
+      for (let i = 1; i <= l.term; i++) {
+        const interest = open * r; const close = open + interest - l.payment;
+        rows.push({ i, open, interest, payment: l.payment, close: Math.abs(close) < 1 ? 0 : close });
+        open = close;
+      }
+      return rows;
+    }
+  };
+}
+const BUCKETS = [
+  { name:'Не просрочено', test: d => d <= 0 },
+  { name:'1–30 дней', test: d => d >= 1 && d <= 30 },
+  { name:'31–90 дней', test: d => d >= 31 && d <= 90 },
+  { name:'91–180 дней', test: d => d >= 91 && d <= 180 },
+  { name:'Более 180 дней', test: d => d > 180 }
+];
+function eclCalc(rows){
+  const rates = S.settings.ecl;
+  const b = BUCKETS.map((bk, i) => {
+    const items = rows.filter(r => bk.test(r.days || 0));
+    const amount = sum(items, r => r.amount), booked = sum(items, r => r.reserve);
+    return { name: bk.name, rate: rates[i] || 0, amount, booked, required: amount * (rates[i] || 0) / 100, count: items.length };
+  });
+  return { buckets: b, amount: sum(b, x => x.amount), required: sum(b, x => x.required), booked: sum(b, x => x.booked) };
+}
+function loanCalc(l){
+  const t = (l.term || 0) / 12;
+  const fv = l.principal * Math.pow(1 + (l.rate || 0) / 100, t);
+  const pv = fv / Math.pow(1 + (l.market || 0) / 100, t);
+  return { pv, effect: l.principal - pv, gap: (l.market || 0) - (l.rate || 0) };
+}
+function ipnExpected(p){
+  const base = p.salary * 0.88 - (p.deductionMRP || 0) * S.settings.mrp;
+  return Math.max(0, base) * 0.1;
+}
+function faCalc(a, P){
+  const d = D(a.date);
+  const used = d ? Math.max(0, mi(P.end) - mi(d)) : 0;
+  const expected = a.life > 0 ? Math.min(a.cost, a.cost * used / a.life) : 0;
+  return { used, expected, diff: (a.accum || 0) - expected };
+}
+function dtCalc(rows){
+  const rate = S.settings.citRate / 100;
+  const items = rows.map(r => {
+    const diff = (r.carrying || 0) - (r.taxBase || 0);
+    const dtl = /обяз/i.test(r.side) ? -diff * rate : diff * rate;
+    return Object.assign({}, r, { diff, dtl });
+  });
+  return { items, net: sum(items, x => x.dtl) };
+}
+function turnover(name, P){
+  return sum(S.data.entries.filter(e => e.counterparty === name && inP(e.date, P) && !isPay(e)), e => e.amount);
+}
+
+/* ---------- modules ---------- */
+const MODS = {
+  overview:{ t:'Обзор' },
+  strikes:{ t:'Все страйки' },
+  vat:{ t:'НДС и ЭСФ', group:'Налоги', tax:true, needs:['esf'], desc:'Сверка электронных счетов-фактур с учётом: статусы ЭСФ, ставки НДС и суммы НДС в зачёте.' },
+  cit:{ t:'КПН: вычеты', group:'Налоги', tax:true, needs:['deductions'], desc:'Расходы, отнесённые на вычет по КПН, против категорий, которые не принимаются в вычет.' },
+  payroll:{ t:'Зарплатные налоги', group:'Налоги', tax:true, needs:['payroll'], desc:'Пересчёт вычетов и ИПН по каждому сотруднику по правилам 2026 года.' },
+  counterparties:{ t:'Контрагенты и первичка', group:'Учёт', tax:true, needs:['counterparties','entries'], desc:'Статус контрагентов по КГД, договоры, акты сверки, первичные документы и двойные оплаты.' },
+  journal:{ t:'Проводки и аномалии', group:'Учёт', needs:['entries'], desc:'Пропущенные регулярные начисления и нетипичные ручные проводки за период.' },
+  ifrs16:{ t:'Аренда', code:'IFRS 16', group:'МСФО', ifrs:true, needs:['leases'], desc:'Расчёт обязательства по аренде и актива в форме права пользования по каждому договору и сравнение с учётом.' },
+  ifrs9:{ t:'Финансовые инструменты', code:'IFRS 9', group:'МСФО', ifrs:true, needs:['receivables'], desc:'Резерв под ожидаемые кредитные убытки по матрице просрочки и дисконтирование займов по нерыночным ставкам.' },
+  ifrs15:{ t:'Выручка', code:'IFRS 15', group:'МСФО', ifrs:true, needs:['revenue'], desc:'Момент признания выручки (передача контроля), предоплаты и ретро-бонусы покупателям.' },
+  ias21:{ t:'Валюта', code:'IAS 21', group:'МСФО', ifrs:true, needs:['fx'], desc:'Переоценка денежных статей по курсу на конец периода и запрет переоценки авансов.' },
+  ias2:{ t:'Запасы', code:'IAS 2', group:'МСФО', ifrs:true, needs:['inventory'], desc:'Оценка по наименьшей из себестоимости и чистой цены продажи, отрицательные остатки, неликвиды.' },
+  ias16:{ t:'Основные средства', code:'IAS 16', group:'МСФО', ifrs:true, needs:['assets'], desc:'Начисление амортизации, сроки полезного использования и долгое незавершённое строительство.' },
+  ias37:{ t:'Резервы', code:'IAS 37 и IAS 19', group:'МСФО', ifrs:true, needs:['provisions'], desc:'Полнота резервов (отпуска, бонусы, гарантии) и дисконтирование долгосрочных обязательств.' },
+  ias12:{ t:'Отложенный налог', code:'IAS 12', group:'МСФО', ifrs:true, needs:['temp'], desc:'Расчёт отложенного налога по временным разницам и сравнение с учётом.' },
+  close:{ t:'Закрытие периода', group:'Закрытие' },
+  data:{ t:'Данные', group:'Система' },
+  rules:{ t:'Библиотека проверок', group:'Система' },
+  settings:{ t:'Настройки', group:'Система' }
+};
+const NAV = [
+  { title:'', items:['overview','strikes'] },
+  { title:'Налоги', items:['vat','cit','payroll'] },
+  { title:'Учёт', items:['counterparties','journal'] },
+  { title:'МСФО', items:['ifrs16','ifrs9','ifrs15','ias21','ias2','ias16','ias37','ias12'] },
+  { title:'Закрытие', items:['close'] },
+  { title:'Система', items:['data','rules','settings'] }
+];
+
+/* ---------- rules ---------- */
+const RULES = [];
+const rule = def => RULES.push(def);
+const TAXCODE = 'Налоговый кодекс РК (действует с 01.01.2026)';
+
+rule({ id:'esf_revoked', mod:'vat', sev:'crit', name:'Отозванные и аннулированные ЭСФ остаются в учёте', needs:['esf'], run(c){
+  return S.data.esf.filter(r => /отозв|аннул/i.test(r.status) && r.inBooks && inP(r.date, c.P)).map(r => {
+    const incoming = /^вход/i.test(r.direction);
+    return { key:r.number, sev: incoming ? 'crit' : 'warn',
+      title: incoming ? 'НДС в зачёт по отозванному ЭСФ' : 'Реализация отражена по отозванному ЭСФ',
+      entity: r.counterparty, amount: r.bookVat || r.vat,
+      what: `ЭСФ ${r.number} от ${fd(r.date)} имеет статус «${r.status}», но ${incoming ? 'НДС по нему включён в зачёт' : 'реализация осталась в учёте'}.`,
+      basis: TAXCODE + ': НДС относится в зачёт только по действительным ЭСФ.',
+      fix: incoming ? 'Запросить у поставщика новый ЭСФ или исключить НДС из зачёта до его получения.' : 'Выписать исправленный ЭСФ или скорректировать реализацию.',
+      entry: incoming ? `Сторно НДС в зачёт: ${money(r.bookVat || r.vat)}` : 'Корректировка реализации после выписки исправленного ЭСФ' };
+  });
+}});
+rule({ id:'esf_old_rate', mod:'vat', sev:'crit', name:'ЭСФ 2026 года со ставкой ниже базовой', needs:['esf'], run(c){
+  const g = {};
+  S.data.esf.filter(r => inP(r.date, c.P) && r.date >= '2026-01-01' && r.rate > 0 && r.rate < S.settings.vatRate && !/отозв|аннул/i.test(r.status)).forEach(r => {
+    const k = r.counterparty + '|' + r.rate; (g[k] = g[k] || { cp:r.counterparty, rate:r.rate, rows:[], dir:r.direction }).rows.push(r);
+  });
+  return Object.values(g).map(x => {
+    const under = sum(x.rows, r => r.net * (S.settings.vatRate - x.rate) / 100);
+    return { key: x.cp + x.rate, title:`Ставка НДС ${x.rate}% вместо ${S.settings.vatRate}%`, entity:x.cp, amount: under,
+      what:`${x.rows.length} ${plural(x.rows.length,'ЭСФ','ЭСФ','ЭСФ')} за период (${x.dir}) выписаны по ставке ${x.rate}%. ${/^исх/i.test(x.dir) ? 'НДС к уплате занижен' : 'НДС в зачёте рассчитан неверно'}.`,
+      basis: TAXCODE + ': базовая ставка НДС 16%. Пониженные ставки применяются только к отдельным операциям.',
+      fix:'Выписать исправленные ЭСФ и проверить ставку в настройках 1С. Если применяется законная пониженная ставка, отметьте «Это не ошибка».',
+      entry:`Доначисление НДС: ${money(under)}` };
+  });
+}});
+rule({ id:'esf_not_in_books', mod:'vat', sev:'warn', name:'ЭСФ не отражён в учёте', needs:['esf'], run(c){
+  return S.data.esf.filter(r => inP(r.date, c.P) && !r.inBooks && !/отозв|аннул/i.test(r.status)).map(r => {
+    const incoming = /^вход/i.test(r.direction);
+    return { key:r.number, sev: incoming ? 'warn' : 'crit', title: incoming ? 'ЭСФ поставщика не отражён в учёте' : 'Исходящий ЭСФ без реализации в учёте', entity:r.counterparty, amount:r.vat,
+      what: incoming ? `Поставщик выписал ЭСФ ${r.number} на ${money(r.net + r.vat)}, но поступления в учёте нет. Теряется зачёт НДС или не отражён расход.` : `ЭСФ ${r.number} выписан покупателю, а реализации в учёте нет. Риск занижения оборота.`,
+      basis:'Сверка данных ИС ЭСФ с учётом.', fix: incoming ? 'Проверить факт поставки и провести документ поступления.' : 'Провести реализацию или отозвать ЭСФ.',
+      entry: incoming ? `Дт Запасы или расходы / Кт Кредиторская задолженность; НДС в зачёт ${money(r.vat)}` : 'Отражение реализации' };
+  });
+}});
+rule({ id:'esf_vat_mismatch', mod:'vat', sev:'warn', name:'НДС в учёте не совпадает с ЭСФ', needs:['esf'], run(c){
+  return S.data.esf.filter(r => inP(r.date, c.P) && r.inBooks && Math.abs((r.bookVat || 0) - (r.vat || 0)) > 1).map(r => ({
+    key:r.number, title:'НДС в учёте расходится с ЭСФ', entity:r.counterparty, amount:Math.abs(r.bookVat - r.vat),
+    what:`По ЭСФ ${r.number} НДС ${money(r.vat)}, в учёте ${money(r.bookVat)}.`, basis:'Сверка данных ИС ЭСФ с учётом.',
+    fix:'Найти ошибку в документе 1С и исправить сумму НДС.', entry:`Корректировка НДС на ${money(r.vat - r.bookVat)}` }));
+}});
+
+rule({ id:'kpn_nondeductible', mod:'cit', sev:'warn', name:'Расходы, не принимаемые в вычет, отнесены на вычет', needs:['deductions'], run(){
+  const cats = S.settings.nonDeductible.split(';').map(x => x.trim().toLowerCase()).filter(Boolean);
+  return S.data.deductions.filter(r => r.deducted && cats.includes((r.category || '').trim().toLowerCase())).map((r, i) => ({
+    key: i + r.expense, title:'Невычитаемый расход в вычетах по КПН', entity:r.expense, amount:r.amount,
+    what:`Расход отнесён на вычет, но категория «${r.category}» не принимается в вычет. Эффект на КПН: ${money(r.amount * S.settings.citRate / 100)}.`,
+    basis: TAXCODE + ': перечень расходов, не принимаемых в вычет по КПН. Список категорий настраивается налоговым экспертом.',
+    fix:'Исключить расход из вычетов при расчёте КПН.', entry:`Налоговый учёт: исключить из вычетов ${money(r.amount)}` }));
+}});
+
+rule({ id:'pay_deduction', mod:'payroll', sev:'warn', name:'Базовый вычет применён не в размере 30 МРП', needs:['payroll'], run(){
+  const base = S.settings.baseDeduction, mrp = S.settings.mrp;
+  return S.data.payroll.filter(p => (p.deductionMRP || 0) !== base).map(p => {
+    const eff = Math.abs(base - (p.deductionMRP || 0)) * mrp * 0.1;
+    return { key:p.name, title: (p.deductionMRP || 0) < base ? 'Вычет применён в старом размере' : 'Вычет больше установленного', entity:p.name, amount:eff,
+      what:`Применён вычет ${p.deductionMRP} МРП вместо ${base} МРП. ИПН ${(p.deductionMRP || 0) < base ? 'удержан больше' : 'удержан меньше'}, чем нужно, примерно на ${money(eff)} в месяц.`,
+      basis: TAXCODE + ': базовый налоговый вычет 30 МРП в месяц.', fix:'Обновить настройки вычетов сотрудника в 1С и пересчитать ИПН.',
+      entry:`Перерасчёт ИПН: ${money(eff)}` };
+  });
+}});
+rule({ id:'pay_ipn', mod:'payroll', sev:'info', name:'ИПН расходится с упрощённым пересчётом', needs:['payroll'], run(){
+  return S.data.payroll.filter(p => Math.abs((p.ipn || 0) - ipnExpected(p)) > 500 && p.salary * 12 <= 8500 * S.settings.mrp).map(p => ({
+    key:p.name, title:'ИПН не совпадает с пересчётом', entity:p.name, amount:Math.abs(p.ipn - ipnExpected(p)),
+    what:`Удержано ${money(p.ipn)}, по упрощённому пересчёту ${money(ipnExpected(p))}.`, basis:'Упрощённый расчёт: (начислено − ОПВ 10% − ВОСМС 2% − вычет) × 10%.',
+    fix:'Проверить корректировки и льготы сотрудника. Если расчёт верен, отметьте «Это не ошибка».', entry:'Перерасчёт ИПН при подтверждении ошибки' }));
+}});
+rule({ id:'pay_progressive', mod:'payroll', sev:'info', name:'Доход выше 8 500 МРП в год: ставка 15%', needs:['payroll'], run(){
+  const lim = 8500 * S.settings.mrp;
+  return S.data.payroll.filter(p => p.salary * 12 > lim).map(p => {
+    const extra = (p.salary * 12 - lim) * 0.05 / 12;
+    return { key:p.name, title:'Проверьте ставку ИПН 15%', entity:p.name, amount:extra,
+      what:`Годовой доход в пересчёте ${money(p.salary * 12)} превышает 8 500 МРП (${money(lim)}). К превышению применяется ставка 15%. Ориентировочная доплата: ${money(extra)} в месяц.`,
+      basis: TAXCODE + ': ставка ИПН 15% для доходов свыше 8 500 МРП в год.', fix:'Проверить, учитывает ли 1С прогрессивную ставку для этого сотрудника.', entry:'Доудержание ИПН при подтверждении' };
+  });
+}});
+
+rule({ id:'cp_kgd', mod:'counterparties', sev:'crit', name:'Контрагент не действующий по данным КГД', needs:['counterparties','entries'], run(c){
+  return S.data.counterparties.filter(x => x.kgd && x.kgd.trim().toLowerCase() !== 'действующий').map(x => {
+    const t = turnover(x.name, c.P);
+    return { key:x.name, title:`Контрагент: «${x.kgd}»`, entity:x.name, amount:t || null,
+      what:`По данным КГД статус контрагента «${x.kgd}». Операции за период: ${money(t)}. Вычеты по КПН и зачёт НДС по таким сделкам под риском исключения.`,
+      basis: TAXCODE + ': ограничения по вычетам и зачёту НДС по сделкам с бездействующими и недобросовестными налогоплательщиками.',
+      fix:'Проверить реальность сделок, собрать подтверждающие документы, решить вопрос о корректировке вычетов и зачёта.', entry:'Решение принимает главный бухгалтер' };
+  });
+}});
+rule({ id:'cp_contract', mod:'counterparties', sev:'warn', name:'Договор истёк, а операции продолжаются', needs:['counterparties','entries'], run(c){
+  return S.data.counterparties.filter(x => x.contractEnd).map(x => {
+    const end = D(x.contractEnd);
+    const after = S.data.entries.filter(e => e.counterparty === x.name && inP(e.date, c.P) && D(e.date) > end && !isPay(e));
+    return after.length ? { key:x.name, title:'Операции после окончания договора', entity:x.name, amount:sum(after, e => e.amount),
+      what:`Договор действовал до ${fd(x.contractEnd)}, а за период проведено ${after.length} ${plural(after.length,'операция','операции','операций')}.`,
+      basis:'Подтверждение расходов договором и первичными документами.', fix:'Продлить договор допсоглашением или оформить новый.', entry:'Корректировка не нужна после оформления договора' } : null;
+  }).filter(Boolean);
+}});
+rule({ id:'cp_nocontract', mod:'counterparties', sev:'warn', name:'Нет договора с контрагентом', needs:['counterparties','entries'], run(c){
+  return S.data.counterparties.filter(x => !x.contractEnd).map(x => {
+    const t = turnover(x.name, c.P);
+    return t ? { key:x.name, title:'Операции без договора', entity:x.name, amount:t, what:`С контрагентом нет договора в справочнике, а операции за период составили ${money(t)}.`,
+      basis:'Подтверждение расходов договором и первичными документами.', fix:'Заключить договор и внести его в 1С.', entry:'—' } : null;
+  }).filter(Boolean);
+}});
+rule({ id:'cp_act', mod:'counterparties', sev:'warn', name:'Акт сверки расходится с учётом', needs:['counterparties'], run(){
+  return S.data.counterparties.filter(x => x.actBalance != null && Math.abs((x.bookBalance || 0) - x.actBalance) > 1).map(x => ({
+    key:x.name, title:'Акт сверки расходится с учётом', entity:x.name, amount:Math.abs(x.bookBalance - x.actBalance),
+    what:`В учёте ${money(x.bookBalance)}, по акту сверки ${money(x.actBalance)}.`, basis:'Сверка взаиморасчётов на конец периода.',
+    fix:'Найти расхождение по документам: непроведённая накладная, оплата или возврат.', entry:'Зависит от результата сверки' }));
+}});
+rule({ id:'cp_stale', mod:'counterparties', sev:'info', name:'Задолженность без движения больше 3 лет', needs:['counterparties'], run(c){
+  return S.data.counterparties.filter(x => x.lastMovement && Math.abs(x.bookBalance || 0) > 0 && (mi(c.P.end) - mi(D(x.lastMovement))) >= 36).map(x => ({
+    key:x.name, title:'Истекает срок исковой давности', entity:x.name, amount:Math.abs(x.bookBalance),
+    what:`Последнее движение ${fd(x.lastMovement)}, сальдо ${money(x.bookBalance)}.`, basis:'Гражданский кодекс РК: общий срок исковой давности 3 года. Списание влияет на доходы и КПН.',
+    fix:'Подтвердить долг актом сверки или списать.', entry:`Дт Кредиторская задолженность / Кт Прочие доходы: ${money(Math.abs(x.bookBalance))}` }));
+}});
+rule({ id:'je_nodoc', mod:'counterparties', sev:'warn', name:'Проводки без первичных документов', needs:['entries'], run(c){
+  const g = {};
+  S.data.entries.filter(e => inP(e.date, c.P) && !e.hasDoc).forEach(e => { const k = e.counterparty || 'Без контрагента'; (g[k] = g[k] || []).push(e); });
+  return Object.entries(g).map(([k, rows]) => ({ key:k, title:`${rows.length} ${plural(rows.length,'проводка','проводки','проводок')} без первички`, entity:k, amount:sum(rows, e => e.amount),
+    what:`Не приложены первичные документы: ${rows.map(e => e.doc).join(', ')}. Без первички расходы не подтверждены для вычетов по КПН.`,
+    basis: TAXCODE + ': расходы на вычет подтверждаются первичными документами.', fix:'Запросить документы у контрагента и прикрепить в 1С.', entry:'Корректировка не нужна после получения документов' }));
+}});
+rule({ id:'je_dup', mod:'counterparties', sev:'crit', name:'Возможная двойная оплата', needs:['entries'], run(c){
+  const g = {};
+  S.data.entries.filter(e => inP(e.date, c.P) && e.doc).forEach(e => { const k = e.doc + '|' + e.counterparty + '|' + e.amount + '|' + e.debit + '|' + e.credit; (g[k] = g[k] || []).push(e); });
+  return Object.values(g).filter(r => r.length > 1).map(r => ({ key:r[0].doc + r[0].counterparty, title:'Возможная двойная оплата', entity:r[0].counterparty, amount:r[0].amount * (r.length - 1),
+    what:`Документ ${r[0].doc} на ${money(r[0].amount)} проведён ${r.length} раза: ${r.map(e => fd(e.date)).join(', ')}.`, basis:'Контроль дублей в журнале проводок.',
+    fix:'Проверить банковскую выписку. Если оплата ушла дважды, запросить возврат или зачесть в счёт будущих поставок.', entry:'Сторно дубля, если оплаты не было' }));
+}});
+rule({ id:'je_regular', mod:'journal', sev:'warn', name:'Пропущено регулярное начисление', needs:['entries'], run(c){
+  const months = [1,2,3].map(k => mi(c.P.start) - k);
+  const map = {};
+  S.data.entries.forEach(e => { const d = D(e.date); if (!d || isPay(e) || !e.counterparty) return; const k = e.counterparty + '|' + e.description; (map[k] = map[k] || { months:new Set(), amounts:[], cp:e.counterparty, ds:e.description, debit:e.debit }); map[k].months.add(mi(d)); if (months.includes(mi(d))) map[k].amounts.push(e.amount); });
+  return Object.values(map).filter(x => months.every(m => x.months.has(m)) && !x.months.has(mi(c.P.start))).map(x => {
+    const avg = sum(x.amounts, a => a) / x.amounts.length;
+    return { key:x.cp + x.ds, title:`Нет начисления: ${x.ds.toLowerCase()}`, entity:x.cp, amount:avg,
+      what:`Начисление «${x.ds}» было в каждом из трёх предыдущих месяцев (в среднем ${money(avg)}), а за ${c.P.label} отсутствует.`,
+      basis:'Принцип начисления: расходы признаются в периоде, к которому относятся.', fix:'Запросить акт за период или начислить расход по оценке.',
+      entry:`Дт ${x.debit} / Кт 3310: ${money(avg)}` };
+  });
+}});
+rule({ id:'je_anomaly', mod:'journal', sev:'info', name:'Крупная круглая проводка в выходной день', needs:['entries'], run(c){
+  return S.data.entries.filter(e => { const d = D(e.date); return inP(e.date, c.P) && e.amount >= 1000000 && e.amount % 100000 === 0 && (d.getUTCDay() === 0 || d.getUTCDay() === 6); }).map(e => ({
+    key:e.doc + e.date, title:'Нетипичная проводка', entity:e.description || e.doc, amount:e.amount,
+    what:`${e.doc} от ${fd(e.date)} (выходной день): Дт ${e.debit} / Кт ${e.credit} на круглую сумму ${money(e.amount)}.`, basis:'Аналитика журнала проводок: признаки ошибок и манипуляций.',
+    fix:'Проверить основание и кто провёл корректировку.', entry:'—' }));
+}});
+
+rule({ id:'lease_unrecognized', mod:'ifrs16', sev:'crit', name:'Аренда не признана по МСФО 16', needs:['leases'], run(c){
+  return S.data.leases.filter(l => !l.recognized && l.term > 12).map(l => { const k = leaseCalc(l, c.P);
+    return { key:l.counterparty + l.object, title:`Аренда не признана: ${l.object.toLowerCase()}`, entity:l.counterparty, amount:k.liability,
+      what:`Договор на ${l.term} мес. с платежом ${money(l.payment)} учитывается как расход. По МСФО 16 нужно признать актив и обязательство. Расчёт на конец периода: обязательство ${moneyM(k.liability)}, актив ${moneyM(k.rou)} (ставка ${l.rate}% годовых, осталось ${k.remaining} мес.).`,
+      basis:'МСФО (IFRS) 16 «Аренда».', fix:'Подтвердить срок аренды (с учётом опционов продления) и ставку дисконтирования, затем признать актив и обязательство.',
+      entry:`Дт Актив в форме права пользования ${money(k.rou)} / Кт Обязательство по аренде ${money(k.liability)}; разница в нераспределённую прибыль и расходы периода` }; });
+}});
+rule({ id:'lease_mismatch', mod:'ifrs16', sev:'warn', name:'Обязательство по аренде не совпадает с расчётом', needs:['leases'], run(c){
+  return S.data.leases.filter(l => l.recognized).map(l => { const k = leaseCalc(l, c.P); const diff = (l.bookLiability || 0) - k.liability;
+    return k.liability > 0 && Math.abs(diff) / k.liability > 0.02 ? { key:l.counterparty + l.object, title:'Обязательство по аренде расходится с расчётом', entity:l.counterparty, amount:Math.abs(diff),
+      what:`В учёте ${money(l.bookLiability)}, расчёт по графику ${money(k.liability)}. Возможны неучтённая модификация договора, индексация или ошибка в процентах.`,
+      basis:'МСФО (IFRS) 16 «Аренда».', fix:'Сверить график платежей с договором и допсоглашениями, пересчитать обязательство.', entry:`Корректировка обязательства на ${money(-diff)}` } : null; }).filter(Boolean);
+}});
+rule({ id:'ecl_reserve', mod:'ifrs9', sev:'warn', name:'Резерв под ожидаемые кредитные убытки', needs:['receivables'], run(){
+  const e = eclCalc(S.data.receivables); const diff = e.required - e.booked;
+  if (Math.abs(diff) <= Math.max(1, e.required * 0.05)) return [];
+  return [{ key:'ecl', title: diff > 0 ? 'Резерв по дебиторке недостаточен' : 'Резерв по дебиторке избыточен', entity:'Дебиторская задолженность', amount:Math.abs(diff), sev: diff > 0 ? 'warn' : 'info',
+    what:`По матрице просрочки нужен резерв ${money(e.required)}, в учёте ${money(e.booked)}.`, basis:'МСФО (IFRS) 9 «Финансовые инструменты», упрощённый подход для торговой дебиторки.',
+    fix:'Проверить ставки матрицы на исторических данных и начислить разницу.', entry: diff > 0 ? `Дт Расходы по ожидаемым кредитным убыткам / Кт Резерв: ${money(diff)}` : `Восстановление резерва: ${money(-diff)}` }];
+}});
+rule({ id:'loan_discount', mod:'ifrs9', sev:'warn', name:'Займ по нерыночной ставке не дисконтирован', needs:['loans'], run(){
+  return S.data.loans.filter(l => !l.discounted && Math.abs(loanCalc(l).gap) > 2).map(l => { const k = loanCalc(l);
+    return { key:l.counterparty, title:`Займ ${l.type} по нерыночной ставке`, entity:l.counterparty, amount:Math.abs(k.effect),
+      what:`Займ ${money(l.principal)} под ${l.rate}% при рыночной ставке ${l.market}%. Справедливая стоимость при признании ${money(k.pv)}, разница ${money(k.effect)}.`,
+      basis:'МСФО (IFRS) 9: первоначальное признание по справедливой стоимости.', fix:'Признать займ по приведённой стоимости и начислять проценты по эффективной ставке.',
+      entry:`Разница ${money(Math.abs(k.effect))} в расходы или капитал (если займ связанной стороне)` }; });
+}});
+rule({ id:'rev_cutoff', mod:'ifrs15', sev:'crit', name:'Выручка признана до передачи контроля', needs:['revenue'], run(c){
+  return S.data.revenue.filter(r => inP(r.recognized, c.P) && (!r.transfer || D(r.transfer) > c.P.end)).map(r => ({
+    key:r.doc, title: r.transfer ? 'Выручка признана раньше передачи контроля' : 'Предоплата признана выручкой', entity:r.counterparty, amount:r.amount,
+    what: r.transfer ? `${r.doc}: выручка признана ${fd(r.recognized)}, а контроль переходит ${fd(r.transfer)}, уже в следующем периоде.` : `${r.doc}: выручка признана без передачи товара или услуги покупателю.`,
+    basis:'МСФО (IFRS) 15 «Выручка по договорам с покупателями»: выручка признаётся при передаче контроля.', fix:'Перенести выручку в период передачи контроля, полученные суммы отразить как обязательство по договору.',
+    entry:`Дт Выручка / Кт Обязательство по договору (авансы полученные): ${money(r.amount)}` }));
+}});
+rule({ id:'rev_bonus', mod:'ifrs15', sev:'warn', name:'Ретро-бонусы не уменьшают выручку', needs:['revenue'], run(){
+  return S.data.revenue.filter(r => r.bonusPct > 0 && (r.amount * r.bonusPct / 100 - (r.bonusAccrued || 0)) > 1).map(r => { const need = r.amount * r.bonusPct / 100 - (r.bonusAccrued || 0);
+    return { key:r.doc, title:'Не начислен ретро-бонус покупателю', entity:r.counterparty, amount:need,
+      what:`Условия договора дают покупателю бонус ${r.bonusPct}% от продаж (${money(r.amount)}). Начислено ${money(r.bonusAccrued || 0)}.`,
+      basis:'МСФО (IFRS) 15: переменное возмещение уменьшает выручку.', fix:'Оценить ожидаемый бонус и уменьшить выручку.', entry:`Дт Выручка / Кт Обязательство по возврату средств: ${money(need)}` }; });
+}});
+rule({ id:'fx_monetary', mod:'ias21', sev:'warn', name:'Денежные статьи не переоценены по курсу на конец периода', needs:['fx'], run(){
+  return S.data.fx.filter(r => /денеж/i.test(r.type)).map(r => { const rate = S.settings.rates[(r.currency || '').toUpperCase()];
+    if (!rate) return null; const diff = r.amountFC * (rate - r.rateBooked);
+    return Math.abs(diff) > 1 && Math.abs(rate - r.rateBooked) / rate > 0.002 ? { key:r.item + r.currency, title:'Статья не переоценена', entity:r.item, amount:Math.abs(diff),
+      what:`${NF2.format(r.amountFC)} ${r.currency} учтены по курсу ${NF2.format(r.rateBooked)}, курс на конец периода ${NF2.format(rate)}. Курсовая разница ${money(diff)}.`,
+      basis:'МСФО (IAS) 21: денежные статьи пересчитываются по курсу на отчётную дату.', fix:'Провести переоценку валютных остатков.', entry:`Курсовая разница: ${money(diff)}` } : null; }).filter(Boolean);
+}});
+rule({ id:'fx_advance', mod:'ias21', sev:'warn', name:'Переоценены авансы (немонетарные статьи)', needs:['fx'], run(){
+  return S.data.fx.filter(r => /аванс/i.test(r.type) && Math.abs(r.revalAmount || 0) > 1).map(r => ({
+    key:r.item + r.currency, title:'Переоценён аванс в валюте', entity:r.item, amount:Math.abs(r.revalAmount),
+    what:`На аванс ${NF2.format(r.amountFC)} ${r.currency} начислена курсовая разница ${money(r.revalAmount)}. Авансы учитываются по историческому курсу.`,
+    basis:'МСФО (IAS) 21: немонетарные статьи не переоцениваются.', fix:'Сторнировать курсовую разницу по авансу.', entry:`Сторно курсовой разницы: ${money(r.revalAmount)}` }));
+}});
+rule({ id:'inv_nrv', mod:'ias2', sev:'warn', name:'Запасы не уценены до чистой цены продажи', needs:['inventory'], run(){
+  return S.data.inventory.filter(r => r.qty > 0 && r.nrv < r.cost).map(r => { const need = r.qty * (r.cost - r.nrv) - (r.writedown || 0);
+    return need > 1 ? { key:r.item, title:'Нужна уценка запасов', entity:r.item, amount:need,
+      what:`Себестоимость ${money(r.cost)} за ед. выше чистой цены продажи ${money(r.nrv)}. Остаток ${NF0.format(r.qty)}. Уценено ${money(r.writedown || 0)}.`,
+      basis:'МСФО (IAS) 2: запасы оцениваются по наименьшей из себестоимости и чистой цены продажи.', fix:'Начислить уценку.', entry:`Дт Себестоимость / Кт Резерв по уценке запасов: ${money(need)}` } : null; }).filter(Boolean);
+}});
+rule({ id:'inv_negative', mod:'ias2', sev:'crit', name:'Отрицательные остатки запасов', needs:['inventory'], run(){
+  return S.data.inventory.filter(r => r.qty < 0).map(r => ({ key:r.item, title:'Отрицательный остаток на складе', entity:r.item, amount:Math.abs(r.qty * r.cost),
+    what:`Остаток ${NF0.format(r.qty)}: списано больше, чем поступило. Себестоимость продаж искажена.`, basis:'Достоверность учёта запасов.',
+    fix:'Найти непроведённое поступление или ошибочное списание.', entry:'Зависит от причины' }));
+}});
+rule({ id:'inv_stale', mod:'ias2', sev:'info', name:'Неликвидные запасы', needs:['inventory'], run(c){
+  return S.data.inventory.filter(r => r.qty > 0 && r.lastMovement && (mi(c.P.end) - mi(D(r.lastMovement))) >= 12).map(r => ({
+    key:r.item, title:'Запасы без движения больше года', entity:r.item, amount:r.qty * r.cost,
+    what:`Последнее движение ${fd(r.lastMovement)}. Возможно, чистая цена продажи ниже себестоимости.`, basis:'МСФО (IAS) 2: признаки снижения чистой цены продажи.',
+    fix:'Оценить возможность продажи и при необходимости уценить.', entry:'По результату оценки' }));
+}});
+rule({ id:'fa_nodepr', mod:'ias16', sev:'crit', name:'Амортизация не начисляется', needs:['assets'], run(c){
+  return S.data.assets.filter(a => /эксплуат/i.test(a.status) && !(a.accum > 0)).map(a => { const k = faCalc(a, c.P);
+    return k.used >= 1 ? { key:a.name, title:'Амортизация не начисляется', entity:a.name, amount:k.expected,
+      what:`Объект введён ${fd(a.date)}, прошло ${k.used} мес., амортизация не начислена. Расчётная сумма ${money(k.expected)}.`, basis:'МСФО (IAS) 16: амортизация начинается, когда актив готов к использованию.',
+      fix:'Проверить карточку ОС в 1С (способ и срок) и начислить амортизацию.', entry:`Дт Расходы на амортизацию / Кт Накопленная амортизация: ${money(k.expected)}` } : null; }).filter(Boolean);
+}});
+rule({ id:'fa_mismatch', mod:'ias16', sev:'warn', name:'Накопленная амортизация расходится с расчётом', needs:['assets'], run(c){
+  return S.data.assets.filter(a => /эксплуат/i.test(a.status) && a.accum > 0 && a.accum < a.cost).map(a => { const k = faCalc(a, c.P);
+    return Math.abs(k.diff) / a.cost > 0.03 ? { key:a.name, title:'Амортизация расходится с расчётом', entity:a.name, amount:Math.abs(k.diff),
+      what:`Начислено ${money(a.accum)}, по линейному методу за ${k.used} мес. ${money(k.expected)}.`, basis:'МСФО (IAS) 16.',
+      fix:'Проверить срок полезного использования и пропущенные месяцы.', entry:`Доначисление амортизации: ${money(-k.diff)}` } : null; }).filter(Boolean);
+}});
+rule({ id:'fa_fully', mod:'ias16', sev:'info', name:'Полностью самортизированные объекты в работе', needs:['assets'], run(){
+  return S.data.assets.filter(a => /эксплуат/i.test(a.status) && a.cost > 0 && a.accum >= a.cost).map(a => ({
+    key:a.name, title:'Объект самортизирован, но используется', entity:a.name, amount:a.cost,
+    what:'Стоимость полностью списана, а объект продолжает работать. Срок полезного использования, вероятно, был занижен.', basis:'МСФО (IAS) 16: сроки пересматриваются не реже раза в год.',
+    fix:'Пересмотреть сроки полезного использования по аналогичным объектам.', entry:'Перспективное изменение оценки' }));
+}});
+rule({ id:'fa_cip', mod:'ias16', sev:'info', name:'Долгое незавершённое строительство', needs:['assets'], run(c){
+  return S.data.assets.filter(a => /незаверш/i.test(a.status) && a.date && (mi(c.P.end) - mi(D(a.date))) > 24).map(a => ({
+    key:a.name, title:'Незавершённое строительство больше 2 лет', entity:a.name, amount:a.cost,
+    what:`Строительство начато ${fd(a.date)}. Возможно, объект уже используется или есть признаки обесценения.`, basis:'МСФО (IAS) 16 и МСФО (IAS) 36.',
+    fix:'Проверить статус объекта: ввести в эксплуатацию или провести тест на обесценение.', entry:'По результату проверки' }));
+}});
+rule({ id:'prov_short', mod:'ias37', sev:'warn', name:'Резерв начислен не полностью', needs:['provisions'], run(){
+  return S.data.provisions.filter(p => p.required - (p.booked || 0) > Math.max(1, p.required * 0.05)).map(p => ({
+    key:p.type, title:`Недоначислен резерв: ${p.type.toLowerCase()}`, entity:p.type, amount:p.required - (p.booked || 0),
+    what:`Оценка ${money(p.required)}, в учёте ${money(p.booked || 0)}.`, basis: /отпуск|бонус/i.test(p.type) ? 'МСФО (IAS) 19 «Вознаграждения работникам».' : 'МСФО (IAS) 37 «Резервы, условные обязательства и условные активы».',
+    fix:'Доначислить резерв по оценке.', entry:`Дт Расходы / Кт Резерв: ${money(p.required - (p.booked || 0))}` }));
+}});
+rule({ id:'prov_discount', mod:'ias37', sev:'warn', name:'Долгосрочный резерв не дисконтирован', needs:['provisions'], run(){
+  const r = S.settings.discountRate / 100;
+  return S.data.provisions.filter(p => p.term > 12 && !p.discounted).map(p => { const eff = p.required * (1 - 1 / Math.pow(1 + r, p.term / 12));
+    return { key:p.type, title:'Резерв не дисконтирован', entity:p.type, amount:eff,
+      what:`Срок исполнения ${p.term} мес. При ставке ${S.settings.discountRate}% приведённая стоимость ${money(p.required - eff)}, эффект ${money(eff)}.`,
+      basis:'МСФО (IAS) 37: если эффект временной стоимости денег существенен, резерв дисконтируется.', fix:'Продисконтировать резерв и начислять амортизацию дисконта как финансовый расход.',
+      entry:`Уменьшение резерва на ${money(eff)}` }; });
+}});
+rule({ id:'dt_mismatch', mod:'ias12', sev:'warn', name:'Отложенный налог расходится с расчётом', needs:['temp'], run(){
+  const k = dtCalc(S.data.temp); const diff = k.net - (S.settings.deferredBooked || 0);
+  return Math.abs(diff) > 1 ? [{ key:'dt', title:'Отложенный налог расходится с расчётом', entity:'Временные разницы', amount:Math.abs(diff),
+    what:`Расчётное чистое отложенное налоговое обязательство ${money(k.net)}, в учёте ${money(S.settings.deferredBooked)}. Ставка КПН ${S.settings.citRate}%.`,
+    basis:'МСФО (IAS) 12 «Налоги на прибыль».', fix:'Проверить полноту временных разниц (в том числе от МСФО-корректировок) и скорректировать отложенный налог.',
+    entry:`Корректировка отложенного налога: ${money(diff)}` }] : [];
+}});
+
+/* ---------- engine ---------- */
+function runAll(){
+  const c = { P: period() }; const out = [];
+  for (const r of RULES) {
+    if (S.rulesOff[r.id]) continue;
+    if (r.needs.some(n => !(S.data[n] && S.data[n].length))) continue;
+    let res = [];
+    try { res = r.run(c) || []; } catch(e) { console.error(r.id, e); }
+    for (const x of res) {
+      if (x.amount != null && x.amount > 0 && x.amount < S.settings.threshold) continue;
+      const id = r.id + ':' + x.key;
+      const sev = x.sev || r.sev;
+      out.push(Object.assign({}, x, { id, sev, rule:r.id, mod:r.mod, status: S.statuses[id] || 'new' }));
+    }
+  }
+  const ord = { crit:0, warn:1, info:2 };
+  out.sort((a, b) => ord[a.sev] - ord[b.sev] || (b.amount || 0) - (a.amount || 0));
+  return out;
+}
+const isOpen = s => s.status === 'new' || s.status === 'work';
+const SEV = { crit:'Критично', warn:'Внимание', info:'К сведению' };
+const STATUS = { new:'Новый', work:'В работе', fixed:'Исправлено', dismissed:'Не ошибка' };
+
+const TASKS = [
+  { id:'load', t:'Загрузить данные из 1С', auto:'data' },
+  { id:'esf', t:'Сверить ЭСФ с учётом', rules:['esf_'] },
+  { id:'kgd', t:'Проверить контрагентов по КГД', rules:['cp_kgd'] },
+  { id:'acts', t:'Сверить расчёты и первичку с контрагентами', rules:['cp_act','cp_contract','cp_nocontract','je_nodoc','je_dup','cp_stale'] },
+  { id:'accr', t:'Начислить регулярные расходы', rules:['je_regular'] },
+  { id:'pay', t:'Проверить зарплатные налоги', rules:['pay_'] },
+  { id:'kpn', t:'Проверить вычеты по КПН', rules:['kpn_'] },
+  { id:'fa', t:'Начислить амортизацию', rules:['fa_'] },
+  { id:'fx', t:'Переоценить валютные статьи', rules:['fx_'] },
+  { id:'inv', t:'Оценить запасы', rules:['inv_'] },
+  { id:'prov', t:'Начислить резервы', rules:['prov_'] },
+  { id:'rev', t:'Проверить признание выручки', rules:['rev_'] },
+  { id:'lease', t:'Корректировки по аренде (МСФО 16)', rules:['lease_'] },
+  { id:'fin', t:'Резервы и займы (МСФО 9)', rules:['ecl_','loan_'] },
+  { id:'dt', t:'Рассчитать отложенный налог', rules:['dt_'] },
+  { id:'anom', t:'Разобрать нетипичные проводки', rules:['je_anomaly'] },
+  { id:'approve', t:'Утверждение главным бухгалтером', manual:true }
+];
+function taskStatus(t, strikes){
+  if (t.auto === 'data') { const n = DS_ORDER.filter(k => S.data[k].length).length; return n ? { s:'done', txt:`Загружено наборов: ${n} из ${DS_ORDER.length}` } : { s:'nodata', txt:'Нет данных' }; }
+  if (t.manual) return S.tasks[t.id] ? { s:'done', txt:'Выполнено' } : { s:'manual', txt:'Ожидает' };
+  const rs = RULES.filter(r => t.rules.some(p => r.id.startsWith(p)) && !S.rulesOff[r.id]);
+  const hasData = rs.some(r => r.needs.every(n => S.data[n] && S.data[n].length));
+  if (!hasData) return { s:'nodata', txt:'Нет данных' };
+  const open = strikes.filter(x => isOpen(x) && rs.some(r => r.id === x.rule));
+  if (!open.length) return { s:'done', txt:'Готово' };
+  const crit = open.filter(x => x.sev === 'crit').length;
+  return { s: crit ? 'open' : 'warn', txt:`Открыто: ${open.length}`, n: open.length, link: rs[0].mod };
+}
+
+/* ---------- view helpers ---------- */
+const sevBadge = s => `<span class="badge b-${s}">${SEV[s]}</span>`;
+function strikeItem(x, showMod){
+  return `<button type="button" class="strike ${isOpen(x) ? '' : 'closed'}" data-act="open" data-id="${esc(x.id)}">
+    ${sevBadge(x.sev)}
+    <span><span class="strike-title">${esc(x.title)}</span><br><span class="strike-meta">${esc(x.entity || '')}${showMod ? ' · ' + esc(MODS[x.mod].t) : ''}</span></span>
+    <span><span class="strike-amt">${x.amount != null ? esc(moneyM(x.amount)) : '—'}</span><br><span class="strike-status">${STATUS[x.status]}</span></span>
+  </button>`;
+}
+function strikeList(list, showMod, emptyText){
+  if (!list.length) return `<div class="empty">${esc(emptyText || 'Страйков нет.')}</div>`;
+  return `<div class="strikes">${list.map(x => strikeItem(x, showMod)).join('')}</div>`;
+}
+function table(cols, rows, opts){
+  opts = opts || {};
+  const head = cols.map(c => `<th class="${c.num ? 'num' : ''}" scope="col">${esc(c.h)}</th>`).join('');
+  const body = rows.map((r, i) => `<tr class="${opts.rowClass ? opts.rowClass(r, i) : ''}">${cols.map(c => `<td class="${c.num ? 'num' : ''}">${c.html ? c.html(r, i) : esc(c.f(r, i))}</td>`).join('')}</tr>`).join('');
+  const foot = opts.foot ? `<tfoot><tr>${opts.foot.map((f, i) => `<td class="${cols[i] && cols[i].num ? 'num' : ''}">${f}</td>`).join('')}</tr></tfoot>` : '';
+  return `<div class="scroll"><table class="tbl" style="min-width:${opts.min || 640}px"><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
+}
+function noData(mod){
+  const need = (MODS[mod].needs || []).filter(n => !S.data[n].length).map(n => '«' + SCHEMAS[n].title + '»');
+  return need.length ? `<div class="empty">Нет данных: ${esc(need.join(', '))}. <a href="#/data">Загрузите их на странице «Данные»</a> или верните демо-данные.</div>` : '';
+}
+function moduleHead(mod, strikes){
+  const m = MODS[mod]; const P = period();
+  const mine = strikes.filter(x => x.mod === mod); const open = mine.filter(isOpen);
+  return `<div class="crumbs">${esc(S.settings.company)}, ${esc(P.label)}${m.group ? ' · ' + esc(m.group) : ''}</div>
+  <div class="page-head"><div><h1>${esc(m.t)}${m.code ? ' <span class="t-muted" style="font-weight:500;font-size:.7em">' + esc(m.code) + '</span>' : ''}</h1><p class="lead">${esc(m.desc || '')}</p></div></div>
+  ${noData(mod)}
+  <section class="panel"><h2>Страйки раздела: ${open.length} ${plural(open.length,'открыт','открыто','открыто')}</h2>${strikeList(mine, false, 'Проверки раздела не нашли проблем.')}</section>`;
+}
+const flagCls = (crit, warn) => crit ? 'flag-crit' : (warn ? 'flag' : '');
+
+/* ---------- views ---------- */
+function vOverview(st){
+  const P = period(); const open = st.filter(isOpen);
+  const crit = open.filter(x => x.sev === 'crit').length;
+  const taxSum = sum(open.filter(x => MODS[x.mod].tax), x => x.amount);
+  const ifrsSum = sum(open.filter(x => MODS[x.mod].ifrs), x => x.amount);
+  const ts = TASKS.map(t => Object.assign({ t }, taskStatus(t, st)));
+  const done = ts.filter(x => x.s === 'done').length; const pct = Math.round(done / ts.length * 100);
+  const segCls = { done:'seg-done', open:'seg-open', warn:'seg-warn', manual:'seg-manual', nodata:'seg-nodata' };
+  const mods = Object.keys(MODS).filter(k => MODS[k].group && MODS[k].needs);
+  const rows = mods.map(k => { const l = open.filter(x => x.mod === k); return { k, crit:l.filter(x => x.sev === 'crit').length, warn:l.filter(x => x.sev === 'warn').length, info:l.filter(x => x.sev === 'info').length, amt:sum(l, x => x.amount) }; });
+  return `<div class="crumbs">${esc(S.settings.company)}</div>
+  <div class="page-head"><div><h1>Закрытие: ${esc(P.label)}</h1><p class="lead">Сверка проверяет данные из 1С по ${RULES.length} правилам налогового учёта и МСФО и показывает, что нужно исправить до сдачи отчётности.</p></div>
+  <div class="row"><button type="button" class="btn" data-act="export">Экспорт страйков (CSV)</button><a class="btn btn-primary" href="#/strikes">Разобрать страйки</a></div></div>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between"><h2>Готовность закрытия: ${pct}%</h2><span class="note">${done} из ${ts.length} этапов</span></div>
+    <div class="close-bar" role="list" aria-label="Этапы закрытия">${ts.map(x => `<a role="listitem" href="#/${x.link || 'close'}" class="close-seg ${segCls[x.s]}" title="${esc(x.t.t + ': ' + x.txt)}" aria-label="${esc(x.t.t + ': ' + x.txt)}"></a>`).join('')}</div>
+    <div class="legend"><span><i class="seg-done"></i>Готово</span><span><i class="seg-open"></i>Есть критичные</span><span><i class="seg-warn"></i>Есть замечания</span><span><i class="seg-manual"></i>Ручной этап</span><span><i class="seg-nodata"></i>Нет данных</span></div>
+  </section>
+  <div class="kpis">
+    <div class="kpi"><span class="kpi-label">Открытые страйки</span><span class="kpi-value">${open.length}</span><span class="kpi-sub ${crit ? 'crit' : ''}">${crit} ${plural(crit,'критичный','критичных','критичных')}</span></div>
+    <div class="kpi"><span class="kpi-label">Налоги: суммы под риском</span><span class="kpi-value">${esc(moneyM(taxSum))}</span><span class="kpi-sub">НДС, КПН, ИПН, контрагенты</span></div>
+    <div class="kpi"><span class="kpi-label">МСФО: суммы корректировок</span><span class="kpi-value">${esc(moneyM(ifrsSum))}</span><span class="kpi-sub">аренда, резервы, выручка, валюта</span></div>
+    <div class="kpi"><span class="kpi-label">Закрыто страйков</span><span class="kpi-value">${st.length - open.length}</span><span class="kpi-sub">из ${st.length} найденных</span></div>
+  </div>
+  <div class="grid-2">
+    <section class="panel"><h2>По разделам</h2>${table([
+      { h:'Раздел', html:r => `<a href="#/${r.k}">${esc(MODS[r.k].t)}</a>${MODS[r.k].code ? ' <span class="t-muted">' + esc(MODS[r.k].code) + '</span>' : ''}` },
+      { h:'Крит.', num:true, html:r => r.crit ? `<span class="t-crit">${r.crit}</span>` : '<span class="t-muted">0</span>' },
+      { h:'Вним.', num:true, html:r => r.warn ? `<span class="t-warn">${r.warn}</span>` : '<span class="t-muted">0</span>' },
+      { h:'Инфо', num:true, f:r => r.info },
+      { h:'Сумма', num:true, f:r => r.amt ? moneyM(r.amt) : '—' }
+    ], rows, { min:420 })}</section>
+    <section class="panel"><h2>Разобрать в первую очередь</h2>${strikeList(open.filter(x => x.sev === 'crit').slice(0, 8), true, 'Критичных страйков нет.')}</section>
+  </div>`;
+}
+function vStrikes(st){
+  const q = UI.q.trim().toLowerCase();
+  let list = st.filter(x => (UI.sev === 'all' || x.sev === UI.sev) && (UI.mod === 'all' || x.mod === UI.mod) && (UI.status === 'all' || (UI.status === 'open' ? isOpen(x) : x.status === UI.status)));
+  if (q) list = list.filter(x => (x.title + ' ' + (x.entity || '') + ' ' + x.what).toLowerCase().includes(q));
+  const cnt = s => st.filter(x => s === 'all' || x.sev === s).length;
+  const modOpts = Object.keys(MODS).filter(k => MODS[k].needs);
+  return `<div class="page-head"><div><h1>Все страйки</h1><p class="lead">Каждый страйк объясняет, что не так, на каком основании и как исправить. Отмечайте статус, чтобы вести закрытие периода.</p></div><button type="button" class="btn" data-act="export">Экспорт (CSV)</button></div>
+  <div class="row" role="group" aria-label="Важность">${['all','crit','warn','info'].map(s => `<button type="button" class="chip" data-act="sev" data-v="${s}" aria-pressed="${UI.sev === s}">${s === 'all' ? 'Все' : SEV[s]} · ${cnt(s)}</button>`).join('')}</div>
+  <div class="row" style="align-items:flex-end">
+    <label class="field" style="flex:1 1 200px">Раздел<select data-change="mod"><option value="all">Все разделы</option>${modOpts.map(k => `<option value="${k}" ${UI.mod === k ? 'selected' : ''}>${esc(MODS[k].t + (MODS[k].code ? ' (' + MODS[k].code + ')' : ''))}</option>`).join('')}</select></label>
+    <label class="field" style="flex:1 1 160px">Статус<select data-change="status">${[['open','Открытые'],['all','Все'],['work','В работе'],['fixed','Исправлено'],['dismissed','Не ошибка']].map(([v, l]) => `<option value="${v}" ${UI.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="field" style="flex:2 1 240px">Поиск<input type="search" data-change="q" value="${esc(UI.q)}" placeholder="Контрагент, документ, тема"></label>
+  </div>
+  <div class="note">Показано: ${list.length}</div>
+  ${strikeList(list, true, 'По выбранным фильтрам страйков нет.')}`;
+}
+function vVat(st){
+  const P = period(); const rows = S.data.esf.filter(r => inP(r.date, P));
+  const inc = rows.filter(r => /^вход/i.test(r.direction)), out = rows.filter(r => /^исх/i.test(r.direction));
+  const valid = r => !/отозв|аннул/i.test(r.status);
+  return moduleHead('vat', st) + (S.data.esf.length ? `
+  <div class="kpis">
+    <div class="kpi"><span class="kpi-label">НДС по действительным входящим ЭСФ</span><span class="kpi-value">${esc(moneyM(sum(inc.filter(valid), r => r.vat)))}</span><span class="kpi-sub">${inc.length} входящих ЭСФ</span></div>
+    <div class="kpi"><span class="kpi-label">НДС в зачёт по учёту</span><span class="kpi-value">${esc(moneyM(sum(inc.filter(r => r.inBooks), r => r.bookVat)))}</span><span class="kpi-sub">по отражённым ЭСФ</span></div>
+    <div class="kpi"><span class="kpi-label">НДС начисленный по исходящим</span><span class="kpi-value">${esc(moneyM(sum(out.filter(valid), r => r.vat)))}</span><span class="kpi-sub">${out.length} исходящих ЭСФ</span></div>
+  </div>
+  <section class="panel"><h2>Реестр ЭСФ за период</h2>${table([
+    { h:'Номер', f:r => r.number }, { h:'Дата', f:r => fd(r.date) }, { h:'Направление', f:r => r.direction }, { h:'Контрагент', f:r => r.counterparty },
+    { h:'Без НДС', num:true, f:r => money(r.net) }, { h:'Ставка', num:true, html:r => r.rate < S.settings.vatRate && r.rate > 0 ? `<span class="t-crit">${r.rate}%</span>` : r.rate + '%' },
+    { h:'НДС', num:true, f:r => money(r.vat) }, { h:'НДС в учёте', num:true, html:r => r.inBooks ? (Math.abs(r.bookVat - r.vat) > 1 ? `<span class="t-warn">${money(r.bookVat)}</span>` : money(r.bookVat)) : '<span class="t-warn">не отражён</span>' },
+    { h:'Статус', html:r => valid(r) ? `<span class="badge b-ok">${esc(r.status)}</span>` : `<span class="badge b-crit">${esc(r.status)}</span>` }
+  ], rows, { min:980, rowClass:r => flagCls(!valid(r) && r.inBooks, !r.inBooks || Math.abs(r.bookVat - r.vat) > 1) })}</section>` : '');
+}
+function vCit(st){
+  const cats = S.settings.nonDeductible.split(';').map(x => x.trim().toLowerCase());
+  const bad = r => r.deducted && cats.includes((r.category || '').trim().toLowerCase());
+  const rows = S.data.deductions;
+  return moduleHead('cit', st) + (rows.length ? `<section class="panel"><h2>Расходы и вычеты</h2><p class="panel-sub">Невычитаемые категории: ${esc(S.settings.nonDeductible)}. Изменить список можно в настройках.</p>${table([
+    { h:'Расход', f:r => r.expense }, { h:'Категория', f:r => r.category }, { h:'Сумма', num:true, f:r => money(r.amount) },
+    { h:'На вычет', f:r => r.deducted ? 'да' : 'нет' }, { h:'Эффект на КПН', num:true, html:r => bad(r) ? `<span class="t-crit">${money(r.amount * S.settings.citRate / 100)}</span>` : '—' }
+  ], rows, { rowClass:r => flagCls(false, bad(r)), foot:['Итого эффект', '', '', '', money(sum(rows.filter(bad), r => r.amount * S.settings.citRate / 100))] })}</section>` : '');
+}
+function vPayroll(st){
+  const rows = S.data.payroll; const lim = 8500 * S.settings.mrp;
+  return moduleHead('payroll', st) + (rows.length ? `<section class="panel"><h2>Пересчёт по сотрудникам</h2><p class="panel-sub">Упрощённая модель: ИПН = (начислено − ОПВ 10% − ВОСМС 2% − вычет) × 10%. МРП ${money(S.settings.mrp)}, базовый вычет ${S.settings.baseDeduction} МРП.</p>${table([
+    { h:'Сотрудник', f:r => r.name }, { h:'Начислено', num:true, f:r => money(r.salary) },
+    { h:'Вычет, МРП', num:true, html:r => r.deductionMRP !== S.settings.baseDeduction ? `<span class="t-warn">${r.deductionMRP}</span>` : r.deductionMRP },
+    { h:'ИПН удержан', num:true, f:r => money(r.ipn) }, { h:'ИПН по пересчёту', num:true, f:r => money(ipnExpected(r)) },
+    { h:'Отметка', html:r => r.salary * 12 > lim ? '<span class="badge b-info">ставка 15%</span>' : (r.deductionMRP !== S.settings.baseDeduction ? '<span class="badge b-warn">вычет</span>' : '<span class="badge b-ok">ок</span>') }
+  ], rows, { min:760, rowClass:r => flagCls(false, r.deductionMRP !== S.settings.baseDeduction) })}</section>` : '');
+}
+function vCounterparties(st){
+  const P = period(); const rows = S.data.counterparties;
+  const nodoc = name => S.data.entries.filter(e => e.counterparty === name && inP(e.date, P) && !e.hasDoc).length;
+  return moduleHead('counterparties', st) + (rows.length ? `<section class="panel"><h2>Контрагенты</h2>${table([
+    { h:'Контрагент', f:r => r.name }, { h:'БИН', f:r => r.bin },
+    { h:'Статус КГД', html:r => (r.kgd || '').toLowerCase() === 'действующий' ? `<span class="badge b-ok">${esc(r.kgd)}</span>` : `<span class="badge b-crit">${esc(r.kgd || 'нет данных')}</span>` },
+    { h:'Оборот за период', num:true, f:r => money(turnover(r.name, P)) },
+    { h:'Договор до', html:r => r.contractEnd ? (D(r.contractEnd) < P.end ? `<span class="t-warn">${fd(r.contractEnd)}</span>` : fd(r.contractEnd)) : '<span class="t-warn">нет договора</span>' },
+    { h:'Сальдо в учёте', num:true, f:r => money(r.bookBalance) },
+    { h:'По акту сверки', num:true, html:r => r.actBalance == null ? '<span class="t-muted">не запрошен</span>' : (Math.abs(r.actBalance - r.bookBalance) > 1 ? `<span class="t-warn">${money(r.actBalance)}</span>` : money(r.actBalance)) },
+    { h:'Без первички', num:true, html:r => { const n = nodoc(r.name); return n ? `<span class="t-crit">${n}</span>` : '—'; } }
+  ], rows, { min:1000, rowClass:r => flagCls((r.kgd || '').toLowerCase() !== 'действующий', nodoc(r.name) > 0 || (r.actBalance != null && Math.abs(r.actBalance - r.bookBalance) > 1)) })}</section>` : '');
+}
+function vJournal(st){
+  const P = period(); const rows = S.data.entries.filter(e => inP(e.date, P)).sort((a, b) => a.date < b.date ? -1 : 1);
+  const wk = e => { const d = D(e.date).getUTCDay(); return d === 0 || d === 6; };
+  return moduleHead('journal', st) + (S.data.entries.length ? `<section class="panel"><h2>Проводки за ${esc(P.label)}: ${rows.length}</h2>${table([
+    { h:'Дата', html:r => wk(r) ? `<span class="t-warn">${fd(r.date)}</span>` : fd(r.date) }, { h:'Документ', f:r => r.doc }, { h:'Дт', f:r => r.debit }, { h:'Кт', f:r => r.credit },
+    { h:'Сумма', num:true, f:r => money(r.amount) }, { h:'Контрагент', f:r => r.counterparty || '—' }, { h:'Содержание', f:r => r.description },
+    { h:'Первичка', html:r => r.hasDoc ? '<span class="badge b-ok">есть</span>' : '<span class="badge b-crit">нет</span>' }
+  ], rows, { min:980, rowClass:r => flagCls(!r.hasDoc, wk(r)) })}</section>` : '');
+}
+function vIfrs16(st){
+  const P = period(); const rows = S.data.leases;
+  if (!rows.length) return moduleHead('ifrs16', st);
+  const sel = Math.min(UI.leaseSel, rows.length - 1); const L = rows[sel]; const k = leaseCalc(L, P); const sch = k.schedule();
+  return moduleHead('ifrs16', st) + `<section class="panel"><h2>Договоры аренды</h2>${table([
+    { h:'Арендодатель', f:r => r.counterparty }, { h:'Объект', f:r => r.object }, { h:'Начало', f:r => fd(r.start) }, { h:'Срок', num:true, f:r => r.term + ' мес.' },
+    { h:'Платёж', num:true, f:r => money(r.payment) }, { h:'Ставка', num:true, f:r => r.rate + '%' },
+    { h:'Обязательство по расчёту', num:true, f:r => { const c = leaseCalc(r, P); return c.shortTerm ? 'освобождение' : money(c.liability); } },
+    { h:'В учёте', num:true, html:r => r.recognized ? money(r.bookLiability) : (r.term > 12 ? '<span class="t-crit">не признана</span>' : '<span class="t-muted">краткосрочная</span>') },
+    { h:'', html:(r, i) => `<button type="button" class="btn btn-quiet" data-act="lease" data-i="${i}" aria-pressed="${i === sel}">${i === sel ? 'Открыт график' : 'График'}</button>` }
+  ], rows, { min:1040, rowClass:(r, i) => i === sel ? 'hl' : '' })}</section>
+  <div class="kpis">
+    <div class="kpi"><span class="kpi-label">Обязательство при признании</span><span class="kpi-value">${esc(moneyM(k.pv0))}</span><span class="kpi-sub">${esc(L.object)}</span></div>
+    <div class="kpi"><span class="kpi-label">Обязательство на конец периода</span><span class="kpi-value">${esc(moneyM(k.liability))}</span><span class="kpi-sub">осталось ${k.remaining} из ${L.term} мес.</span></div>
+    <div class="kpi"><span class="kpi-label">Актив в форме права пользования</span><span class="kpi-value">${esc(moneyM(k.rou))}</span><span class="kpi-sub">амортизация ${esc(money(k.depMonthly))} в месяц</span></div>
+  </div>
+  <section class="panel"><h2>График обязательства: ${esc(L.counterparty)}</h2><p class="panel-sub">Платежи в конце месяца, ставка ${L.rate}% годовых. Подсвечен текущий период.</p>
+  <div style="max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px">${table([
+    { h:'Месяц', f:r => r.i }, { h:'На начало', num:true, f:r => money(r.open) }, { h:'Проценты', num:true, f:r => money(r.interest) }, { h:'Платёж', num:true, f:r => money(r.payment) }, { h:'На конец', num:true, f:r => money(r.close) }
+  ], sch, { min:560, rowClass:r => r.i === k.elapsed ? 'hl' : '' })}</div></section>`;
+}
+function vIfrs9(st){
+  const e = eclCalc(S.data.receivables);
+  return moduleHead('ifrs9', st) + (S.data.receivables.length ? `<section class="panel"><h2>Матрица резервов по дебиторке</h2><p class="panel-sub">Ставки по корзинам просрочки можно менять прямо в таблице. На практике их калибруют по истории списаний.</p>${table([
+    { h:'Просрочка', f:r => r.name }, { h:'Долгов', num:true, f:r => r.count }, { h:'Сумма', num:true, f:r => money(r.amount) },
+    { h:'Ставка, %', num:true, html:(r, i) => `<input class="inline-input" type="number" step="0.1" min="0" max="100" value="${r.rate}" data-change="ecl" data-i="${i}" aria-label="Ставка для корзины ${esc(r.name)}">` },
+    { h:'Нужен резерв', num:true, f:r => money(r.required) }, { h:'В учёте', num:true, html:r => r.booked + 1 < r.required * 0.95 ? `<span class="t-warn">${money(r.booked)}</span>` : money(r.booked) }
+  ], e.buckets, { min:680, foot:['Итого', '', money(e.amount), '', money(e.required), money(e.booked)] })}</section>` : '') +
+  (S.data.loans.length ? `<section class="panel"><h2>Займы</h2><p class="panel-sub">Займ по ставке, отличной от рыночной больше чем на 2 п.п., признаётся по приведённой стоимости.</p>${table([
+    { h:'Контрагент', f:r => r.counterparty }, { h:'Тип', f:r => r.type }, { h:'Сумма', num:true, f:r => money(r.principal) }, { h:'Ставка', num:true, f:r => r.rate + '%' }, { h:'Рыночная', num:true, f:r => r.market + '%' },
+    { h:'Срок', num:true, f:r => r.term + ' мес.' }, { h:'Приведённая стоимость', num:true, f:r => money(loanCalc(r).pv) },
+    { h:'Эффект', num:true, html:r => { const k = loanCalc(r); return Math.abs(k.gap) > 2 && !r.discounted ? `<span class="t-warn">${money(k.effect)}</span>` : '<span class="t-muted">—</span>'; } }
+  ], S.data.loans, { min:900 })}</section>` : '');
+}
+function vIfrs15(st){
+  const P = period(); const rows = S.data.revenue;
+  const bad = r => inP(r.recognized, P) && (!r.transfer || D(r.transfer) > P.end);
+  return moduleHead('ifrs15', st) + (rows.length ? `<section class="panel"><h2>Документы реализации</h2>${table([
+    { h:'Документ', f:r => r.doc }, { h:'Покупатель', f:r => r.counterparty }, { h:'Признана', f:r => fd(r.recognized) },
+    { h:'Передача контроля', html:r => !r.transfer ? '<span class="t-crit">нет</span>' : (D(r.transfer) > P.end ? `<span class="t-crit">${fd(r.transfer)}</span>` : fd(r.transfer)) },
+    { h:'Сумма', num:true, f:r => money(r.amount) }, { h:'Бонус', num:true, f:r => r.bonusPct ? r.bonusPct + '%' : '—' }, { h:'Бонус начислен', num:true, f:r => r.bonusPct ? money(r.bonusAccrued) : '—' }
+  ], rows, { min:900, rowClass:r => flagCls(bad(r), r.bonusPct > 0 && !r.bonusAccrued) })}</section>` : '');
+}
+function vIas21(st){
+  const cur = Object.keys(S.settings.rates);
+  return moduleHead('ias21', st) + `<section class="panel"><h2>Курсы на конец периода</h2><p class="panel-sub">Введите официальные курсы Нацбанка РК на последний день периода.</p>
+  <div class="row">${cur.map(c => `<label class="field" style="width:130px">${c}<input type="number" step="0.01" min="0" value="${S.settings.rates[c]}" data-change="rate" data-c="${c}"></label>`).join('')}</div></section>` +
+  (S.data.fx.length ? `<section class="panel"><h2>Валютные статьи</h2>${table([
+    { h:'Статья', f:r => r.item }, { h:'Тип', html:r => /аванс/i.test(r.type) ? '<span class="badge b-none">немонетарная</span>' : '<span class="badge b-info">денежная</span>' },
+    { h:'Сумма', num:true, f:r => NF2.format(r.amountFC) + ' ' + r.currency }, { h:'Курс в учёте', num:true, f:r => NF2.format(r.rateBooked) },
+    { h:'Курс на конец', num:true, f:r => S.settings.rates[r.currency] ? NF2.format(S.settings.rates[r.currency]) : '—' },
+    { h:'Разница', num:true, html:r => { if (/аванс/i.test(r.type)) return r.revalAmount ? `<span class="t-warn">переоценён на ${money(r.revalAmount)}</span>` : '—'; const rt = S.settings.rates[r.currency]; if (!rt) return '—'; const d = r.amountFC * (rt - r.rateBooked); return Math.abs(d) > 1 ? `<span class="t-warn">${money(d)}</span>` : '—'; } }
+  ], S.data.fx, { min:860 })}</section>` : '');
+}
+function vIas2(st){
+  const rows = S.data.inventory;
+  return moduleHead('ias2', st) + (rows.length ? `<section class="panel"><h2>Остатки запасов</h2>${table([
+    { h:'Номенклатура', f:r => r.item }, { h:'Количество', num:true, html:r => r.qty < 0 ? `<span class="t-crit">${NF0.format(r.qty)}</span>` : NF0.format(r.qty) },
+    { h:'Себестоимость', num:true, f:r => money(r.cost) }, { h:'Чистая цена продажи', num:true, html:r => r.nrv < r.cost ? `<span class="t-warn">${money(r.nrv)}</span>` : money(r.nrv) },
+    { h:'Нужна уценка', num:true, f:r => r.qty > 0 && r.nrv < r.cost ? money(r.qty * (r.cost - r.nrv)) : '—' }, { h:'Уценено', num:true, f:r => money(r.writedown) },
+    { h:'Последнее движение', f:r => fd(r.lastMovement) }
+  ], rows, { min:900, rowClass:r => flagCls(r.qty < 0, r.qty > 0 && r.qty * (r.cost - r.nrv) > (r.writedown || 0) + 1) })}</section>` : '');
+}
+function vIas16(st){
+  const P = period(); const rows = S.data.assets;
+  return moduleHead('ias16', st) + (rows.length ? `<section class="panel"><h2>Основные средства</h2><p class="panel-sub">Линейный метод: амортизация начинается с месяца, следующего за вводом.</p>${table([
+    { h:'Объект', f:r => r.name }, { h:'Статус', f:r => r.status }, { h:'Дата', f:r => fd(r.date) }, { h:'Стоимость', num:true, f:r => money(r.cost) },
+    { h:'Срок', num:true, f:r => r.life ? r.life + ' мес.' : '—' }, { h:'Начислено', num:true, f:r => money(r.accum) },
+    { h:'По расчёту', num:true, f:r => /эксплуат/i.test(r.status) ? money(faCalc(r, P).expected) : '—' }
+  ], rows, { min:900 })}</section>` : '');
+}
+function vIas37(st){
+  const r = S.settings.discountRate / 100; const rows = S.data.provisions;
+  return moduleHead('ias37', st) + (rows.length ? `<section class="panel"><h2>Резервы</h2><p class="panel-sub">Ставка дисконтирования ${S.settings.discountRate}% (меняется в настройках).</p>${table([
+    { h:'Резерв', f:x => x.type }, { h:'Оценка', num:true, f:x => money(x.required) }, { h:'В учёте', num:true, html:x => x.required - x.booked > x.required * 0.05 ? `<span class="t-warn">${money(x.booked)}</span>` : money(x.booked) },
+    { h:'Срок', num:true, f:x => x.term + ' мес.' }, { h:'Приведённая стоимость', num:true, f:x => x.term > 12 ? money(x.required / Math.pow(1 + r, x.term / 12)) : '—' }, { h:'Дисконтирован', f:x => x.term > 12 ? (x.discounted ? 'да' : 'нет') : 'не требуется' }
+  ], rows, { min:820 })}</section>` : '');
+}
+function vIas12(st){
+  const k = dtCalc(S.data.temp);
+  return moduleHead('ias12', st) + (S.data.temp.length ? `<section class="panel"><h2>Расчёт отложенного налога</h2><p class="panel-sub">Ставка КПН ${S.settings.citRate}%. Положительное значение означает обязательство, отрицательное означает актив.</p>${table([
+    { h:'Статья', f:x => x.item }, { h:'Раздел', f:x => x.side }, { h:'Балансовая стоимость', num:true, f:x => money(x.carrying) }, { h:'Налоговая база', num:true, f:x => money(x.taxBase) },
+    { h:'Разница', num:true, f:x => money(x.diff) }, { h:'Отложенный налог', num:true, f:x => money(x.dtl) }
+  ], k.items, { min:820, foot:['Чистое отложенное налоговое обязательство', '', '', '', '', money(k.net)] })}
+  <div class="row" style="align-items:flex-end"><label class="field" style="width:260px">Отложенный налог в учёте, ₸<input type="number" step="1" value="${S.settings.deferredBooked}" data-change="set" data-k="deferredBooked"></label><span class="note">Разница с расчётом: <strong>${esc(money(k.net - S.settings.deferredBooked))}</strong></span></div></section>` : '');
+}
+function vClose(st){
+  const ts = TASKS.map(t => Object.assign({ t }, taskStatus(t, st)));
+  const done = ts.filter(x => x.s === 'done').length;
+  const badge = { done:'<span class="badge b-ok">Готово</span>', open:'<span class="badge b-crit">Есть критичные</span>', warn:'<span class="badge b-warn">Есть замечания</span>', manual:'<span class="badge b-none">Ожидает</span>', nodata:'<span class="badge b-none">Нет данных</span>' };
+  return `<div class="page-head"><div><h1>Закрытие периода: ${esc(period().label)}</h1><p class="lead">Этапы отмечаются выполненными автоматически, когда по их проверкам не остаётся открытых страйков. Утверждение главбухом отмечается вручную.</p></div></div>
+  <section class="panel"><h2>Выполнено ${done} из ${ts.length}</h2>
+  <div class="close-bar" aria-hidden="true">${ts.map(x => `<span class="close-seg seg-${x.s}" style="cursor:default"></span>`).join('')}</div>
+  ${table([
+    { h:'Этап', f:x => x.t.t }, { h:'Статус', html:x => badge[x.s] }, { h:'Детали', f:x => x.txt },
+    { h:'', html:x => x.t.manual ? `<label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-change="task" data-id="${x.t.id}" ${S.tasks[x.t.id] ? 'checked' : ''} style="width:18px;height:18px">Утверждено</label>` : (x.link ? `<a href="#/${x.link}">Открыть раздел</a>` : '') }
+  ], ts, { min:720 })}</section>`;
+}
+function vData(){
+  return `<div class="page-head"><div><h1>Данные</h1><p class="lead">Сейчас данные загружаются файлами: выгрузите отчёт из 1С в Excel или CSV, приведите колонки к шаблону и загрузите. Прямое подключение к 1С через OData — следующий этап продукта.</p></div>
+  <div class="row"><button type="button" class="btn" data-act="demo-all">Вернуть все демо-данные</button><button type="button" class="btn" data-act="clear-all">Очистить всё</button></div></div>
+  <div class="ds-grid">${DS_ORDER.map(k => { const s = SCHEMAS[k]; const n = S.data[k].length; const src = S.source[k] || 'empty'; const m = UI.msg[k];
+    return `<div class="ds"><div class="row" style="justify-content:space-between"><h3>${esc(s.title)}</h3>${n ? (src === 'demo' ? '<span class="badge b-warn">Демо</span>' : '<span class="badge b-ok">Загружено</span>') : '<span class="badge b-none">Пусто</span>'}</div>
+      <div class="note">${esc(s.desc)}</div><div class="note">Строк: <strong>${n}</strong>${src.startsWith('file:') ? ', файл ' + esc(src.slice(5)) : ''}</div>
+      ${m ? `<div class="msg ${m.ok ? 'ok' : 'err'}">${esc(m.text)}</div>` : ''}
+      <details><summary>Колонки шаблона</summary><p>${s.cols.map(c => `<code>${esc(c[1])}</code>`).join(' ')}</p><p>Даты: ДД.ММ.ГГГГ или ГГГГ-ММ-ДД. Логические поля: да/нет.</p></details>
+      <div class="row"><label class="btn btn-primary file-label">Загрузить файл<input type="file" accept=".csv,.txt,.xlsx,.xls" data-file="${k}" aria-label="Загрузить файл: ${esc(s.title)}"></label>
+      <button type="button" class="btn" data-act="tpl" data-k="${k}">Шаблон CSV</button>
+      <button type="button" class="btn btn-quiet" data-act="demo" data-k="${k}">Демо</button><button type="button" class="btn btn-quiet" data-act="clear" data-k="${k}">Очистить</button></div></div>`; }).join('')}</div>`;
+}
+function vRules(st){
+  const rows = RULES.map(r => ({ r, n: st.filter(x => x.rule === r.id && isOpen(x)).length }));
+  return `<div class="page-head"><div><h1>Библиотека проверок</h1><p class="lead">${RULES.length} правил. Каждое правило — модуль: новая проверка добавляется без изменения остальной системы. Отключите правило, если оно не подходит учётной политике компании.</p></div></div>
+  ${table([
+    { h:'Вкл.', html:x => `<input type="checkbox" data-change="rule" data-id="${x.r.id}" ${S.rulesOff[x.r.id] ? '' : 'checked'} aria-label="Включить правило: ${esc(x.r.name)}" style="width:18px;height:18px">` },
+    { h:'Правило', f:x => x.r.name }, { h:'Раздел', html:x => `<a href="#/${x.r.mod}">${esc(MODS[x.r.mod].t)}</a>` }, { h:'Важность', html:x => sevBadge(x.r.sev) },
+    { h:'Данные', f:x => x.r.needs.map(n => SCHEMAS[n].title).join(', ') }, { h:'Открыто', num:true, f:x => x.n }
+  ], rows, { min:860 })}`;
+}
+function vSettings(){
+  const s = S.settings; const f = (k, label, type, extra) => `<label class="field">${label}<input type="${type}" value="${esc(s[k])}" data-change="set" data-k="${k}" ${extra || ''}></label>`;
+  return `<div class="page-head"><div><h1>Настройки</h1><p class="lead">Параметры компании и налоговые константы. Значения сохраняются в этом браузере.</p></div></div>
+  <section class="panel"><h2>Компания и период</h2><div class="grid-2" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${f('company','Компания','text')}${f('period','Отчётный период','month')}</div></section>
+  <section class="panel"><h2>Налоговые параметры</h2><div class="grid-2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+    ${f('mrp','МРП, ₸','number','step="1"')}${f('baseDeduction','Базовый вычет, МРП','number','step="1"')}${f('vatRate','Базовая ставка НДС, %','number','step="0.1"')}${f('citRate','Ставка КПН, %','number','step="0.1"')}</div>
+    <label class="field">Категории, не принимаемые в вычет по КПН (через точку с запятой)<input type="text" value="${esc(s.nonDeductible)}" data-change="set" data-k="nonDeductible"></label></section>
+  <section class="panel"><h2>Проверки</h2><div class="grid-2" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${f('threshold','Порог существенности, ₸','number','step="1"')}${f('discountRate','Ставка дисконтирования резервов, %','number','step="0.1"')}</div>
+  <p class="note">Страйки с суммой ниже порога не показываются. Это главный инструмент против ложных срабатываний.</p></section>
+  <section class="panel"><h2>Сброс</h2><p class="note">Вернёт демо-данные, настройки и статусы страйков к исходным.</p><div><button type="button" class="btn" data-act="reset">Сбросить всё</button></div></section>`;
+}
+function drawer(st){
+  const x = st.find(s => s.id === UI.open); if (!x) return '';
+  const ai = UI.ai[x.id]; const busy = UI.aiBusy[x.id];
+  return `<div class="drawer-back" data-act="close-drawer"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dtitle">
+    <div class="row" style="justify-content:space-between">${sevBadge(x.sev)}<button type="button" class="btn" data-act="close-drawer" id="dclose">Закрыть</button></div>
+    <div class="note">${esc(MODS[x.mod].t)}${MODS[x.mod].code ? ' (' + esc(MODS[x.mod].code) + ')' : ''} · ${esc(x.entity || '')}</div>
+    <h2 id="dtitle">${esc(x.title)}</h2>
+    <div class="d-amt">${x.amount != null ? esc(money(x.amount)) : '—'}</div>
+    <div class="d-sec"><span class="lbl">Что не так</span><div>${esc(x.what)}</div></div>
+    <div class="d-sec"><span class="lbl">Основание</span><div>${esc(x.basis)}</div></div>
+    <div class="d-sec"><span class="lbl">Как исправить</span><div>${esc(x.fix)}</div></div>
+    <div class="d-sec d-entry"><span class="lbl">Предлагаемая корректировка</span><div>${esc(x.entry)}</div></div>
+    <div class="d-sec"><span class="lbl">Статус: ${STATUS[x.status]}</span>
+      <div class="row">${[['work','Взять в работу','btn-primary'],['fixed','Исправлено',''],['dismissed','Это не ошибка',''],['new','Вернуть в новые','btn-quiet']].map(([v, l, c]) => `<button type="button" class="btn ${c}" data-act="status" data-id="${esc(x.id)}" data-v="${v}" ${x.status === v ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+      <div class="note">Отметка «Это не ошибка» скрывает страйк из открытых. В продукте она будет обучать проверки под учётную политику компании.</div></div>
+    <div class="d-sec" id="ai-wrap" ${UI.sampleOk ? '' : 'hidden'}><span class="lbl">Объяснение для руководителя</span>
+      ${ai ? `<div class="ai-out" id="ai-out">${esc(ai)}</div>` : ''}
+      <div><button type="button" class="btn" data-act="ai" data-id="${esc(x.id)}" ${busy ? 'disabled' : ''}>${busy ? 'Claude пишет…' : (ai ? 'Объяснить ещё раз' : 'Объяснить простыми словами')}</button></div></div>
+    <div class="note">Проверка носит характер оценки риска. Окончательное решение принимает главный бухгалтер или налоговый консультант.</div>
+  </aside>`;
+}
+
+/* ---------- layout ---------- */
+const VIEWS = { overview:vOverview, strikes:vStrikes, vat:vVat, cit:vCit, payroll:vPayroll, counterparties:vCounterparties, journal:vJournal, ifrs16:vIfrs16, ifrs9:vIfrs9, ifrs15:vIfrs15, ias21:vIas21, ias2:vIas2, ias16:vIas16, ias37:vIas37, ias12:vIas12, close:vClose, data:vData, rules:vRules, settings:vSettings };
+function route(){ const r = (location.hash || '').replace(/^#\/?/, '').split('?')[0]; return VIEWS[r] ? r : 'overview'; }
+function render(){
+  const r = route(); const st = runAll();
+  const navHtml = NAV.map(g => `<div>${g.title ? `<div class="nav-group-title">${esc(g.title)}</div>` : ''}${g.items.map(k => {
+    const l = st.filter(x => isOpen(x) && (k === 'strikes' ? true : x.mod === k));
+    const cnt = k === 'overview' ? '' : (l.length ? `<span class="nav-count ${l.some(x => x.sev === 'crit') ? 'has-crit' : ''}">${l.length}</span>` : '');
+    return `<a class="nav-link" href="#/${k}" ${k === r ? 'aria-current="page"' : ''}><span>${esc(MODS[k].t)}</span>${MODS[k].code ? `<span class="code">${esc(MODS[k].code)}</span>` : ''}${cnt}</a>`;
+  }).join('')}</div>`).join('');
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="shell">
+    <div class="side-wrap"><nav class="side ${UI.navOpen ? 'open' : ''}" aria-label="Разделы">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">С</div><div><div class="brand-name">Сверка</div><div class="brand-sub">контроль закрытия периода</div></div>
+      <button type="button" class="menu-btn" data-act="nav" aria-expanded="${UI.navOpen}">${UI.navOpen ? 'Скрыть' : 'Меню'}</button></div>
+      <div class="nav-groups">${navHtml}</div>
+      <div class="side-foot">${esc(S.settings.company)}<br>Период: ${esc(period().label)}<br>Источник: ${DS_ORDER.some(k => S.source[k] === 'demo' && S.data[k].length) ? 'есть демо-данные' : 'ваши файлы'}</div>
+    </nav></div>
+    <main class="main"><div class="wrap">${VIEWS[r](st)}</div></main>
+  </div>${UI.open ? drawer(st) : ''}${UI.toast ? `<div class="toast" role="status">${esc(UI.toast)}</div>` : ''}`;
+  if (UI.focusDrawer) { UI.focusDrawer = false; const b = document.getElementById('dclose'); if (b) b.focus(); }
+}
+let toastTimer;
+function toast(t){ UI.toast = t; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { UI.toast = ''; render(); }, 3200); }
+
+/* ---------- files ---------- */
+const norm = s => String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9%]/g, '');
+function toIso(v){
+  if (v == null || v === '') return '';
+  if (v instanceof Date && !isNaN(v)) return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate())).toISOString().slice(0, 10);
+  if (typeof v === 'number') { const d = new Date(Math.round((v - 25569) * 86400000)); return isNaN(d) ? '' : d.toISOString().slice(0, 10); }
+  const s = String(v).trim(); let m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  if ((m = /^(\d{1,2})[./](\d{1,2})[./](\d{2,4})/.exec(s))) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  return '';
+}
+const toNum = v => { if (v == null || v === '') return null; if (typeof v === 'number') return v; const n = parseFloat(String(v).replace(/[\s\u00a0₸]/g, '').replace(',', '.')); return isNaN(n) ? null : n; };
+const toBool = v => /^(да|yes|true|1|\+|y|д)$/i.test(String(v == null ? '' : v).trim());
+function mapRows(key, raw){
+  const s = SCHEMAS[key]; if (!raw.length) throw new Error('В файле нет строк.');
+  const headers = Object.keys(raw[0]); const idx = {};
+  s.cols.forEach(c => { const h = headers.find(h => norm(h) === norm(c[1]) || norm(h) === norm(c[0])); if (h) idx[c[0]] = h; });
+  const missing = s.cols.filter(c => !idx[c[0]]).map(c => c[1]);
+  if (missing.length > Math.floor(s.cols.length / 2)) throw new Error('Не найдены колонки: ' + missing.join(', ') + '. Проверьте заголовки по шаблону.');
+  const rows = raw.map(r => { const o = {}; s.cols.forEach(([k, , t]) => { const v = idx[k] ? r[idx[k]] : ''; o[k] = t === 'd' ? toIso(v) : t === 'n' ? (k === 'actBalance' ? toNum(v) : (toNum(v) || 0)) : t === 'b' ? toBool(v) : String(v == null ? '' : v).trim(); }); return o; })
+    .filter(o => s.cols.some(([k, , t]) => t !== 'b' && o[k] !== '' && o[k] !== 0 && o[k] != null));
+  return { rows, missing };
+}
+function parseCsv(text){
+  text = text.replace(/^\uFEFF/, '');
+  const first = text.split(/\r?\n/)[0] || '';
+  const delim = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : ',';
+  const out = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === delim) { row.push(cur); cur = ''; }
+    else if (ch === '\n') { row.push(cur.replace(/\r$/, '')); out.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur || row.length) { row.push(cur.replace(/\r$/, '')); out.push(row); }
+  const head = out.shift() || [];
+  return out.filter(r => r.some(c => c.trim() !== '')).map(r => { const o = {}; head.forEach((h, i) => o[h.trim()] = r[i] == null ? '' : r[i]); return o; });
+}
+async function readFile(key, file){
+  try {
+    let raw;
+    if (/\.(xlsx|xls)$/i.test(file.name)) {
+      if (!window.XLSX) throw new Error('Модуль Excel не загрузился. Сохраните файл как CSV и загрузите снова.');
+      const wb = XLSX.read(await file.arrayBuffer(), { type:'array', cellDates:true });
+      raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'', raw:true });
+    } else {
+      const buf = await file.arrayBuffer();
+      let text = new TextDecoder('utf-8').decode(buf);
+      if (text.includes('\uFFFD')) { try { text = new TextDecoder('windows-1251').decode(buf); } catch(e) {} }
+      raw = parseCsv(text);
+    }
+    const { rows, missing } = mapRows(key, raw);
+    S.data[key] = rows; S.source[key] = 'file:' + file.name; save();
+    UI.msg[key] = { ok:true, text:`Загружено строк: ${rows.length}.` + (missing.length ? ' Не найдены колонки: ' + missing.join(', ') + ' (заполнены пустыми значениями).' : '') };
+  } catch(e) { UI.msg[key] = { ok:false, text: e.message || 'Не удалось прочитать файл.' }; }
+  render();
+}
+const csvCell = v => { const s = String(v == null ? '' : v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+async function offerFile(filename, text){
+  try {
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (!dl) {
+      const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      return;
+    }
+    await dl.save({ filename, data: '\uFEFF' + text });
+  } catch(e) { if (e && e.code !== 'declined') toast('Файл не сохранён.'); }
+}
+function template(key){
+  const s = SCHEMAS[key]; const demo = demoData()[key].slice(0, 3);
+  const lines = [s.cols.map(c => csvCell(c[1])).join(';')].concat(demo.map(r => s.cols.map(([k, , t]) => csvCell(t === 'd' ? fd(r[k]).replace('—','') : t === 'b' ? (r[k] ? 'да' : 'нет') : (r[k] == null ? '' : r[k]))).join(';')));
+  offerFile('shablon-' + key + '.csv', lines.join('\r\n'));
+}
+function exportStrikes(){
+  const st = runAll(); const head = ['Важность','Раздел','Страйк','Контрагент или объект','Сумма','Статус','Что не так','Основание','Как исправить','Корректировка'];
+  const lines = [head.join(';')].concat(st.map(x => [SEV[x.sev], MODS[x.mod].t, x.title, x.entity, x.amount != null ? Math.round(x.amount) : '', STATUS[x.status], x.what, x.basis, x.fix, x.entry].map(csvCell).join(';')));
+  offerFile('straiki-' + S.settings.period + '.csv', lines.join('\r\n'));
+}
+
+/* ---------- AI ---------- */
+UI.sampleOk = false;
+(async () => { try { const s = window.claude && window.claude.use ? await window.claude.use('sample') : null; if (s) { UI.sample = s; UI.sampleOk = true; if (UI.open) render(); } } catch(e) {} })();
+async function explain(id){
+  const x = runAll().find(s => s.id === id); if (!x || !UI.sample) return;
+  UI.aiBusy[id] = true; UI.ai[id] = 'Claude думает…'; render();
+  const prompt = `Ты помогаешь главному бухгалтеру казахстанской компании объяснить проблему в учёте директору. Напиши 3–4 коротких предложения простым языком, без markdown и без списков: что произошло, чем грозит компании и что нужно сделать. Не придумывай новых фактов и сумм.\n\nПроблема: ${x.title}\nКонтрагент или объект: ${x.entity}\nСумма: ${x.amount != null ? money(x.amount) : 'не указана'}\nОписание: ${x.what}\nОснование: ${x.basis}\nКак исправить: ${x.fix}`;
+  try {
+    const res = await UI.sample(prompt, { modelTier:'quick', onText: ({ text }) => { UI.ai[id] = text; const el = document.getElementById('ai-out'); if (el && UI.open === id) el.textContent = text; } });
+    UI.ai[id] = res.text;
+  } catch(e) {
+    if (e && e.code === 'not_granted') { UI.sampleOk = false; delete UI.ai[id]; }
+    else UI.ai[id] = (e && e.text) || 'Не удалось получить объяснение. Попробуйте позже.';
+  }
+  UI.aiBusy[id] = false; render();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.dataset.act;
+  if (a === 'open') { UI.open = el.dataset.id; UI.focusDrawer = true; render(); }
+  else if (a === 'close-drawer') { UI.open = null; render(); }
+  else if (a === 'status') { const v = el.dataset.v; if (v === 'new') delete S.statuses[el.dataset.id]; else S.statuses[el.dataset.id] = v; save(); render(); }
+  else if (a === 'sev') { UI.sev = el.dataset.v; render(); }
+  else if (a === 'nav') { UI.navOpen = !UI.navOpen; render(); }
+  else if (a === 'lease') { UI.leaseSel = +el.dataset.i; render(); }
+  else if (a === 'export') exportStrikes();
+  else if (a === 'tpl') template(el.dataset.k);
+  else if (a === 'demo') { const k = el.dataset.k; S.data[k] = demoData()[k]; S.source[k] = 'demo'; UI.msg[k] = { ok:true, text:'Демо-данные восстановлены.' }; save(); render(); }
+  else if (a === 'clear') { const k = el.dataset.k; S.data[k] = []; S.source[k] = 'empty'; UI.msg[k] = null; save(); render(); }
+  else if (a === 'demo-all') { const d = demoData(); DS_ORDER.forEach(k => { S.data[k] = d[k]; S.source[k] = 'demo'; }); UI.msg = {}; save(); toast('Демо-данные восстановлены.'); }
+  else if (a === 'clear-all') { DS_ORDER.forEach(k => { S.data[k] = []; S.source[k] = 'empty'; }); UI.msg = {}; save(); toast('Все данные очищены.'); }
+  else if (a === 'reset') { S = fresh(); UI.msg = {}; save(); toast('Всё сброшено к исходным значениям.'); }
+  else if (a === 'ai') explain(el.dataset.id);
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.dataset.file) { const f = el.files && el.files[0]; if (f) readFile(el.dataset.file, f); return; }
+  const c = el.dataset.change; if (!c) return;
+  if (c === 'mod') UI.mod = el.value;
+  else if (c === 'status') UI.status = el.value;
+  else if (c === 'q') UI.q = el.value;
+  else if (c === 'ecl') { S.settings.ecl[+el.dataset.i] = Math.max(0, Math.min(100, parseFloat(el.value) || 0)); save(); }
+  else if (c === 'rate') { S.settings.rates[el.dataset.c] = parseFloat(el.value) || 0; save(); }
+  else if (c === 'task') { S.tasks[el.dataset.id] = el.checked; save(); }
+  else if (c === 'rule') { if (el.checked) delete S.rulesOff[el.dataset.id]; else S.rulesOff[el.dataset.id] = true; save(); }
+  else if (c === 'set') { const k = el.dataset.k; const num = typeof DEFAULT_SETTINGS[k] === 'number'; S.settings[k] = num ? (parseFloat(el.value) || 0) : el.value; if (k === 'period' && !/^\d{4}-\d{2}$/.test(el.value)) S.settings.period = DEFAULT_SETTINGS.period; save(); }
+  render();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && UI.open) { UI.open = null; render(); } });
+window.addEventListener('hashchange', () => { UI.navOpen = false; UI.open = null; render(); window.scrollTo(0, 0); });
+
+load();
+render();
+})();
+</script>
+</body>
+</html>
